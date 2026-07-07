@@ -195,7 +195,7 @@ class WeatherTile(Static):
             return ""
         try:
             d = float(degrees) % 360
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return "?"
         dirs = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"]
         return dirs[round(d / 45) % 8]
@@ -238,21 +238,39 @@ class WeatherTile(Static):
         t = f"[bold]{temp}°C[/]" if temp is not None else "[dim]Waiting...[/]"
         f = f"[bold]{feelslike}°C[/]" if feelslike is not None else "[dim]Waiting...[/]"
         h = f"[bold]{humidity}%[/]" if humidity is not None else "[dim]Waiting...[/]"
-        ws = f"[bold]{wind_speed}[/] {self._wind_arrow(wind_dir)}" if wind_speed is not None else "[dim]Waiting...[/]"
-        r = f"[bold]{daily_rain} mm[/]" if daily_rain is not None else "[dim]Waiting...[/]"
-        p = f"[bold]{pressure} mbar[/]" if pressure is not None else "[dim]Waiting...[/]"
-        last = self._last_update.strftime("%H:%M:%S") if self._last_update else "[dim]never[/]"
+        ws = (
+            f"[bold]{wind_speed}[/] {self._wind_arrow(wind_dir)}"
+            if wind_speed is not None
+            else "[dim]Waiting...[/]"
+        )
+        r = (
+            f"[bold]{daily_rain} mm[/]"
+            if daily_rain is not None
+            else "[dim]Waiting...[/]"
+        )
+        p = (
+            f"[bold]{pressure} mbar[/]"
+            if pressure is not None
+            else "[dim]Waiting...[/]"
+        )
+        last = (
+            self._last_update.strftime("%H:%M:%S")
+            if self._last_update
+            else "[dim]never[/]"
+        )
 
-        data = "\n".join([
-            f"  Temp {t}",
-            f"  Feels like {f}",
-            f"  Humidity {h}",
-            f"  Wind {ws}",
-            f"  Rain {r}",
-            f"  Pressure {p}",
-            "",
-            f"  Last updated {last}",
-        ])
+        data = "\n".join(
+            [
+                f"  Temp {t}",
+                f"  Feels like {f}",
+                f"  Humidity {h}",
+                f"  Wind {ws}",
+                f"  Rain {r}",
+                f"  Pressure {p}",
+                "",
+                f"  Last updated {last}",
+            ]
+        )
 
         table = Table.grid(padding=(2, 2))
         table.add_column(width=22)
