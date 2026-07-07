@@ -5,7 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from main import MQTTTile, WeatherTile, RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
+from tiles import MQTTTile, WeatherTile
+from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 
 
 def msg(topic, payload):

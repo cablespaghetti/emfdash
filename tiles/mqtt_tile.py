@@ -1,0 +1,78 @@
+import queue
+
+import paho.mqtt.client as mqtt
+from rich.panel import Panel
+from rich.table import Table
+from textual.reactive import reactive
+from textual.widgets import RichLog, Static
+
+from constants import HOST, PORT
+
+
+class MQTTTile(Static):
+    status = reactive("connecting")
+
+    def __init__(self, topic: str, emoji: str, **kwargs):
+        super().__init__(**kwargs)
+        self.topic = topic
+        self.emoji = emoji
+        self._queue: queue.Queue = queue.Queue(maxsize=200)
+        self._client = mqtt.Client()
+        self._client.on_connect = self._mqtt_on_connect
+        self._client.on_disconnect = self._mqtt_on_disconnect
+        self._client.on_message = self._mqtt_on_message
+
+    def compose(self):
+        yield Static(classes="tile-header")
+        yield RichLog(classes="tile-log", highlight=True, markup=True)
+
+    def on_mount(self):
+        self._log = self.query_one(RichLog)
+        try:
+            self._client.connect_async(HOST, PORT, 60)
+            self._client.loop_start()
+        except Exception as e:
+            self._log.write(Panel(f"[red]Connection error: {e}[/]"))
+        self.set_interval(0.1, self._poll)
+
+    def watch_status(self, status: str):
+        dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
+        color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
+        self.query_one(".tile-header", Static).update(
+            f"[bold]MQTT[/] [dim]— {self.topic}[/]  [{color[status]}]{dot[status]}[/]"
+        )
+
+    def _mqtt_on_connect(self, client, userdata, flags, rc):
+        if rc == 0:
+            client.subscribe(self.topic)
+            self.status = "connected"
+        else:
+            self.status = "disconnected"
+
+    def _mqtt_on_disconnect(self, client, userdata, rc):
+        self.status = "disconnected"
+
+    def _mqtt_on_message(self, client, userdata, msg):
+        try:
+            payload = msg.payload.decode("utf-8")
+        except UnicodeDecodeError:
+            payload = str(msg.payload)
+        try:
+            self._queue.put_nowait(payload)
+        except queue.Full:
+            pass
+
+    def _poll(self):
+        try:
+            while True:
+                payload = self._queue.get_nowait()
+                self._display(payload)
+        except queue.Empty:
+            pass
+
+    def _display(self, payload: str):
+        table = Table.grid(padding=(0, 2))
+        table.add_column(width=4)
+        table.add_column(ratio=1)
+        table.add_row(self.emoji, payload)
+        self._log.write(Panel(table, padding=(0, 1)))
