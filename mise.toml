@@ -1,0 +1,26 @@
+[tools]
+python = "3.14"
+ruff = "latest"
+uv = "latest"
+
+[tasks]
+lint = "ruff check ."
+fix = "ruff check --fix ."
+fmt = "ruff format ."
+test = "uv run pytest tests/ -v"
+ci = "ruff check . && pytest tests/ -v"
+
+[tasks.install]
+description = "Install dependencies"
+alias = "i"
+run = "uv sync"
+
+[tasks.install-dev]
+description = "Install dev dependencies"
+run = "uv sync --extra dev"
+
+[tasks.upgrade]
+description = "Upgrade dependencies"
+run = "uv sync --upgrade"
+
+
