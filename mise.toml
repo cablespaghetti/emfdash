@@ -26,3 +26,7 @@ run = "uv sync --upgrade"
 [tasks.start]
 description = "Run the app"
 run = "uv run python3 main.py"
+
+[tasks.publish-weather]
+description = "Publish weather test fixture data to MQTT"
+run = "uv run python3 tests/publish_weather.py"
