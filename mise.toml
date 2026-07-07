@@ -23,4 +23,6 @@ run = "uv sync --extra dev"
 description = "Upgrade dependencies"
 run = "uv sync --upgrade"
 
-
+[tasks.start]
+description = "Run the app"
+run = "uv run python3 main.py"

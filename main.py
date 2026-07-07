@@ -6,7 +6,7 @@ import queue
 import paho.mqtt.client as mqtt
 from rich.panel import Panel
 from rich.table import Table
-from textual.app import App, ComposeResult
+from textual.app import App
 from textual.containers import Horizontal
 from textual.reactive import reactive
 from textual.widgets import Header, RichLog, Static
@@ -14,29 +14,8 @@ from textual.widgets import Header, RichLog, Static
 HOST = "mqtt.emf.camp"
 PORT = 1883
 
-RICK = """\
-   ╔═══════════╗
-   ║  NEVER    ║
-   ║  GONNA    ║
-   ╚═══════════╝
-   ┌─────────┐
-   │  O   O  │
-   │    ^    │
-   │  ─────  │
-   └─────────┘
-"""
-
-DUCK = """\
-   ╔═══════════╗
-   ║  QUACK    ║
-   ║  QUACK    ║
-   ╚═══════════╝
-      .---.
-     ( 'v' )
-    (   _   )
-      | |/
-      | |\\
-"""
+RICK = "🕺"
+DUCK = "🦆"
 
 
 class MQTTTile(Static):
@@ -48,9 +27,9 @@ class MQTTTile(Static):
         self.ascii_art = ascii_art
         self._queue: queue.Queue = queue.Queue(maxsize=200)
         self._client = mqtt.Client()
-        self._client.on_connect = self._on_connect
-        self._client.on_disconnect = self._on_disconnect
-        self._client.on_message = self._on_message
+        self._client.on_connect = self._mqtt_on_connect
+        self._client.on_disconnect = self._mqtt_on_disconnect
+        self._client.on_message = self._mqtt_on_message
 
     def compose(self):
         yield Static(classes="tile-header")
@@ -72,17 +51,17 @@ class MQTTTile(Static):
             f"[bold {color[status]}]{dot[status]} {self.topic}[/]"
         )
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _mqtt_on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             client.subscribe(self.topic)
             self.status = "connected"
         else:
             self.status = "disconnected"
 
-    def _on_disconnect(self, client, userdata, rc):
+    def _mqtt_on_disconnect(self, client, userdata, rc):
         self.status = "disconnected"
 
-    def _on_message(self, client, userdata, msg):
+    def _mqtt_on_message(self, client, userdata, msg):
         try:
             payload = msg.payload.decode("utf-8")
         except UnicodeDecodeError:
@@ -102,7 +81,7 @@ class MQTTTile(Static):
 
     def _display(self, payload: str):
         table = Table.grid(padding=(0, 2))
-        table.add_column(width=16)
+        table.add_column(width=4)
         table.add_column(ratio=1)
         table.add_row(self.ascii_art, payload)
         self._log.write(Panel(table, padding=(0, 1)))
