@@ -2,6 +2,7 @@
 """EMF Camp Dashboard - TUI dashboard for MQTT feeds."""
 
 import queue
+from datetime import datetime
 
 import paho.mqtt.client as mqtt
 from rich.panel import Panel
@@ -127,6 +128,7 @@ class WeatherTile(Static):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._data: dict[str, str] = {}
+        self._last_update: datetime | None = None
         self._queue: queue.Queue = queue.Queue(maxsize=200)
         self._client = mqtt.Client()
         self._client.on_connect = self._mqtt_on_connect
@@ -139,7 +141,7 @@ class WeatherTile(Static):
 
     def on_mount(self):
         self._content = self.query_one("#weather-content", Static)
-        self._content.update("[dim]Waiting for weather data...[/]")
+        self._redraw()
         try:
             self._client.connect_async(HOST, PORT, 60)
             self._client.loop_start()
@@ -185,9 +187,12 @@ class WeatherTile(Static):
         except queue.Empty:
             pass
         if updated:
+            self._last_update = datetime.now()
             self._redraw()
 
-    def _wind_arrow(self, degrees: str) -> str:
+    def _wind_arrow(self, degrees) -> str:
+        if degrees is None:
+            return ""
         try:
             d = float(degrees) % 360
         except (ValueError, TypeError):
@@ -220,24 +225,40 @@ class WeatherTile(Static):
         return CLOUDY
 
     def _redraw(self):
-        art = self._get_weather_art()
+        art = self._get_weather_art() if self._data else SUNNY
 
-        temp = self._data.get("temp", "?")
-        feelslike = self._data.get("feelslike", "?")
-        humidity = self._data.get("humidity", "?")
-        wind_speed = self._data.get("windspeed", "?")
-        wind_dir = self._data.get("winddir", "?")
-        daily_rain = self._data.get("dailyrain", "?")
-        pressure = self._data.get("baromabs", "?")
+        temp = self._data.get("temp")
+        feelslike = self._data.get("feelslike")
+        humidity = self._data.get("humidity")
+        wind_speed = self._data.get("windspeed")
+        wind_dir = self._data.get("winddir")
+        daily_rain = self._data.get("dailyrain")
+        pressure = self._data.get("baromabs")
 
-        display = (
-            f"[bold cyan]{art}[/]\n"
-            f"\n"
-            f"  [bold]{temp}°C[/]    Feels [bold]{feelslike}°C[/]\n"
-            f"  Hum [bold]{humidity}%[/]  Wind [bold]{wind_speed}[/] {self._wind_arrow(wind_dir)}\n"
-            f"  Rain [bold]{daily_rain} mm[/]  [bold]{pressure} mbar[/]\n"
-        )
-        self._content.update(display)
+        t = f"[bold]{temp}°C[/]" if temp is not None else "[dim]Waiting...[/]"
+        f = f"[bold]{feelslike}°C[/]" if feelslike is not None else "[dim]Waiting...[/]"
+        h = f"[bold]{humidity}%[/]" if humidity is not None else "[dim]Waiting...[/]"
+        ws = f"[bold]{wind_speed}[/] {self._wind_arrow(wind_dir)}" if wind_speed is not None else "[dim]Waiting...[/]"
+        r = f"[bold]{daily_rain} mm[/]" if daily_rain is not None else "[dim]Waiting...[/]"
+        p = f"[bold]{pressure} mbar[/]" if pressure is not None else "[dim]Waiting...[/]"
+        last = self._last_update.strftime("%H:%M:%S") if self._last_update else "[dim]never[/]"
+
+        data = "\n".join([
+            f"  Temp {t}",
+            f"  Feels like {f}",
+            f"  Humidity {h}",
+            f"  Wind {ws}",
+            f"  Rain {r}",
+            f"  Pressure {p}",
+            "",
+            f"  Last updated {last}",
+        ])
+
+        table = Table.grid(padding=(2, 2))
+        table.add_column(width=22)
+        table.add_column(ratio=1)
+        table.add_row(f"[bold cyan]{art}[/]", data)
+        self._content.update(table)
 
 
 class EmfDashApp(App):

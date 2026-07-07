@@ -1,0 +1,5 @@
+Timestamp;Date;Value;Properties
+1783459679013;2026-07-07 22:27:59.013;quack quack?;{"messageExpiryInterval":19}
+1783459802147;2026-07-07 22:30:02.147;QuAck flap flap!;{"messageExpiryInterval":20}
+1783459887181;2026-07-07 22:31:27.181;flap flap waddle? waddle waddle duck duck duck;{"messageExpiryInterval":19}
+1783459987266;2026-07-07 22:33:07.266;splish splash hmm quack;{"messageExpiryInterval":19}
