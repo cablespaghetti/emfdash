@@ -1,4 +1,4 @@
-from textual.app import App
+from textual.app import App, Content
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
@@ -74,7 +74,17 @@ class EmfDashApp(App):
         self.title = "EMFDash"
         self._mqtt.start()
 
+    def format_title(self, title: str, sub_title: str) -> Content:
+        title_content = Content(title)
+        sub_title_content = Content.from_markup(sub_title)
+        if sub_title_content:
+            return Content.assemble(
+                title_content,
+                (" — ", "dim"),
+                sub_title_content.stylize("dim"),
+            )
+        return title_content
+
     def _on_mqtt_status(self, status: str):
-        dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
         color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
-        self.sub_title = f"[{color[status]}]{dot[status]}[/] MQTT"
+        self.sub_title = f"MQTT Status: [{color[status]}]{status}[/]"

@@ -15,15 +15,15 @@ class TestMqttManager:
         m = MqttManager()
         events = []
         m.on_status_change(events.append)
-        m._on_connect(m._client, None, None, 0)
+        m._on_connect(m._client, None, None, 0, None)
         assert events == ["connected"]
 
     def test_status_listeners_notified_on_disconnect(self):
         m = MqttManager()
         events = []
         m.on_status_change(events.append)
-        m._on_connect(m._client, None, None, 0)
-        m._on_disconnect(m._client, None, 0)
+        m._on_connect(m._client, None, None, 0, None)
+        m._on_disconnect(m._client, None, 0, None)
         assert events == ["connected", "disconnected"]
 
     def test_dispatch_exact_topic(self):
@@ -59,14 +59,14 @@ class TestMqttManager:
 
     def test_on_connect_bad_rc(self):
         m = MqttManager()
-        m._on_connect(m._client, None, None, 5)
+        m._on_connect(m._client, None, None, 5, None)
         assert m.status == "disconnected"
 
     def test_connect_failure_notifies_listeners(self):
         m = MqttManager()
         events = []
         m.on_status_change(events.append)
-        m._on_connect(m._client, None, None, 5)
+        m._on_connect(m._client, None, None, 5, None)
         assert events == ["disconnected"]
 
     def test_stop_disconnects(self):

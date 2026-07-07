@@ -7,7 +7,7 @@ from constants import HOST, PORT
 
 class MqttManager:
     def __init__(self):
-        self._client = mqtt.Client()
+        self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message
@@ -42,15 +42,15 @@ class MqttManager:
         for topic_filter, _ in self._handlers:
             self._client.subscribe(topic_filter)
 
-    def _on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
+    def _on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
             self._status = "connected"
             self._subscribe_all()
         else:
             self._status = "disconnected"
         self._notify_status()
 
-    def _on_disconnect(self, client, userdata, rc):
+    def _on_disconnect(self, client, userdata, reason_code, properties):
         self._status = "disconnected"
         self._notify_status()
 
