@@ -3,6 +3,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
 from constants import DUCK, RICK
+from mqtt import MqttManager
 from tiles import MQTTTile, WeatherTile
 
 
@@ -56,13 +57,24 @@ class EmfDashApp(App):
     }
     """
 
+    def __init__(self):
+        super().__init__()
+        self._mqtt = MqttManager()
+        self._mqtt.on_status_change(self._on_mqtt_status)
+
     def compose(self):
         yield Header(show_clock=True)
         with Horizontal():
-            yield MQTTTile("open/astley", RICK, id="astley")
+            yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
             with Vertical():
-                yield WeatherTile(id="weather")
-                yield MQTTTile("open/the-ducks", DUCK, id="ducks")
+                yield WeatherTile(self._mqtt, id="weather")
+                yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
 
     def on_mount(self):
         self.title = "EMFDash"
+        self._mqtt.start()
+
+    def _on_mqtt_status(self, status: str):
+        dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
+        color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
+        self.sub_title = f"[{color[status]}]{dot[status]}[/] MQTT"

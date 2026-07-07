@@ -7,19 +7,17 @@ import pytest
 
 from tiles import MQTTTile, WeatherTile
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
+from tests.conftest import msg
 
 
-def msg(topic, payload):
-    m = Mock()
-    m.topic = topic
-    m.payload = payload.encode("utf-8") if isinstance(payload, str) else payload
-    return m
+def make_mqtt():
+    return Mock()
 
 
 class TestMQTTTile:
     @pytest.fixture
     def tile(self):
-        t = MQTTTile("open/astley", RICK)
+        t = MQTTTile("open/astley", RICK, make_mqtt())
         t._log = Mock()
         return t
 
@@ -29,28 +27,28 @@ class TestMQTTTile:
         assert tile._queue.maxsize == 200
 
     def test_on_message_queues_string(self, tile):
-        tile._mqtt_on_message(None, None, msg("open/astley", "hello world"))
+        tile._mqtt_on_message(msg("open/astley", "hello world"))
         assert tile._queue.get_nowait() == "hello world"
 
     def test_on_message_queues_bytes(self, tile):
-        tile._mqtt_on_message(None, None, msg("open/astley", b"raw bytes"))
+        tile._mqtt_on_message(msg("open/astley", b"raw bytes"))
         assert tile._queue.get_nowait() == "raw bytes"
 
     def test_on_message_full_queue_does_not_raise(self, tile):
         for i in range(200):
             tile._queue.put_nowait(str(i))
-        tile._mqtt_on_message(None, None, msg("open/astley", "overflow"))
+        tile._mqtt_on_message(msg("open/astley", "overflow"))
         assert tile._queue.qsize() == 200
 
     def test_on_message_handles_bad_utf8(self, tile):
         m = msg("open/astley", b"\xff\xfe")
-        tile._mqtt_on_message(None, None, m)
+        tile._mqtt_on_message(m)
         val = tile._queue.get_nowait()
         assert isinstance(val, str)
 
     def test_poll_drains_queue(self, tile):
-        tile._mqtt_on_message(None, None, msg("open/astley", "one"))
-        tile._mqtt_on_message(None, None, msg("open/astley", "two"))
+        tile._mqtt_on_message(msg("open/astley", "one"))
+        tile._mqtt_on_message(msg("open/astley", "two"))
         tile._poll()
         assert tile._queue.empty()
 
@@ -58,7 +56,7 @@ class TestMQTTTile:
 class TestWeatherTile:
     @pytest.fixture
     def tile(self):
-        t = WeatherTile()
+        t = WeatherTile(make_mqtt())
         t._content = Mock()
         return t
 
@@ -67,19 +65,19 @@ class TestWeatherTile:
         assert tile._last_update is None
 
     def test_on_message_queues_tuple(self, tile):
-        tile._mqtt_on_message(None, None, msg("emf/weather/temp", "22.5"))
+        tile._mqtt_on_message(msg("emf/weather/temp", "22.5"))
         key, val = tile._queue.get_nowait()
         assert key == "temp"
         assert val == "22.5"
 
     def test_on_message_deep_topic(self, tile):
-        tile._mqtt_on_message(None, None, msg("emf/weather/winddir", "180"))
+        tile._mqtt_on_message(msg("emf/weather/winddir", "180"))
         key, val = tile._queue.get_nowait()
         assert key == "winddir"
 
     def test_poll_updates_data(self, tile):
-        tile._mqtt_on_message(None, None, msg("emf/weather/temp", "22.5"))
-        tile._mqtt_on_message(None, None, msg("emf/weather/humidity", "60"))
+        tile._mqtt_on_message(msg("emf/weather/temp", "22.5"))
+        tile._mqtt_on_message(msg("emf/weather/humidity", "60"))
         tile._poll()
         assert tile._data == {"temp": "22.5", "humidity": "60"}
         assert tile._last_update is not None
@@ -146,12 +144,12 @@ class TestCsvFixtures:
 
     @pytest.mark.parametrize("topic,path,emoji", CSV_FIXTURES)
     def test_messages_can_be_queued(self, topic, path, emoji):
-        tile = MQTTTile(topic, emoji)
+        tile = MQTTTile(topic, emoji, make_mqtt())
         tile._log = Mock()
         with open(path, newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
             for row in reader:
-                tile._mqtt_on_message(None, None, msg(topic, row["Value"]))
+                tile._mqtt_on_message(msg(topic, row["Value"]))
         assert tile._queue.qsize() > 0
         tile._poll()
         assert tile._queue.empty()
@@ -173,12 +171,12 @@ class TestWeatherCsvFixture:
             assert row["Value"]
 
     def test_messages_populate_data(self):
-        tile = WeatherTile()
+        tile = WeatherTile(make_mqtt())
         tile._content = Mock()
         with open(WEATHER_FIXTURE, newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
             for row in reader:
-                tile._mqtt_on_message(None, None, msg(row["Topic"], row["Value"]))
+                tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
         assert tile._queue.qsize() > 0
         tile._poll()
         assert tile._data["temp"] == "23.2"
@@ -188,11 +186,11 @@ class TestWeatherCsvFixture:
         assert tile._data["solarradiation"] == "60000"
 
     def test_last_timestamp_sets_correct_art(self):
-        tile = WeatherTile()
+        tile = WeatherTile(make_mqtt())
         tile._content = Mock()
         with open(WEATHER_FIXTURE, newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
             for row in reader:
-                tile._mqtt_on_message(None, None, msg(row["Topic"], row["Value"]))
+                tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
         tile._poll()
         assert tile._get_weather_art() == SUNNY

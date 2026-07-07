@@ -1,58 +1,30 @@
 import queue
 
-import paho.mqtt.client as mqtt
 from rich.panel import Panel
 from rich.table import Table
-from textual.reactive import reactive
 from textual.widgets import RichLog, Static
 
-from constants import HOST, PORT
+from mqtt import MqttManager
 
 
 class MQTTTile(Static):
-    status = reactive("connecting")
-
-    def __init__(self, topic: str, emoji: str, **kwargs):
+    def __init__(self, topic: str, emoji: str, mqtt: MqttManager, **kwargs):
         super().__init__(**kwargs)
         self.topic = topic
         self.emoji = emoji
+        self._mqtt = mqtt
         self._queue: queue.Queue = queue.Queue(maxsize=200)
-        self._client = mqtt.Client()
-        self._client.on_connect = self._mqtt_on_connect
-        self._client.on_disconnect = self._mqtt_on_disconnect
-        self._client.on_message = self._mqtt_on_message
 
     def compose(self):
-        yield Static(classes="tile-header")
+        yield Static(f"[bold]MQTT[/] [dim]— {self.topic}[/]", classes="tile-header")
         yield RichLog(classes="tile-log", highlight=True, markup=True)
 
     def on_mount(self):
         self._log = self.query_one(RichLog)
-        try:
-            self._client.connect_async(HOST, PORT, 60)
-            self._client.loop_start()
-        except Exception as e:
-            self._log.write(Panel(f"[red]Connection error: {e}[/]"))
+        self._mqtt.subscribe(self.topic, self._mqtt_on_message)
         self.set_interval(0.1, self._poll)
 
-    def watch_status(self, status: str):
-        dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
-        color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
-        self.query_one(".tile-header", Static).update(
-            f"[bold]MQTT[/] [dim]— {self.topic}[/]  [{color[status]}]{dot[status]}[/]"
-        )
-
-    def _mqtt_on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            client.subscribe(self.topic)
-            self.status = "connected"
-        else:
-            self.status = "disconnected"
-
-    def _mqtt_on_disconnect(self, client, userdata, rc):
-        self.status = "disconnected"
-
-    def _mqtt_on_message(self, client, userdata, msg):
+    def _mqtt_on_message(self, msg):
         try:
             payload = msg.payload.decode("utf-8")
         except UnicodeDecodeError:

@@ -1,59 +1,32 @@
 import queue
 from datetime import datetime
 
-import paho.mqtt.client as mqtt
 from rich.table import Table
-from textual.reactive import reactive
 from textual.widgets import Static
 
-from constants import HOST, PORT, CLOUDY, PARTLY, RAINY, SUNNY, WINDY
+from constants import CLOUDY, PARTLY, RAINY, SUNNY, WINDY
+from mqtt import MqttManager
 
 
 class WeatherTile(Static):
-    status = reactive("connecting")
-
-    def __init__(self, **kwargs):
+    def __init__(self, mqtt: MqttManager, **kwargs):
         super().__init__(**kwargs)
+        self._mqtt = mqtt
         self._data: dict[str, str] = {}
         self._last_update: datetime | None = None
         self._queue: queue.Queue = queue.Queue(maxsize=200)
-        self._client = mqtt.Client()
-        self._client.on_connect = self._mqtt_on_connect
-        self._client.on_disconnect = self._mqtt_on_disconnect
-        self._client.on_message = self._mqtt_on_message
 
     def compose(self):
-        yield Static(classes="tile-header")
+        yield Static("[bold]MQTT[/] [dim]— emf/weather[/]", classes="tile-header")
         yield Static(id="weather-content")
 
     def on_mount(self):
         self._content = self.query_one("#weather-content", Static)
         self._redraw()
-        try:
-            self._client.connect_async(HOST, PORT, 60)
-            self._client.loop_start()
-        except Exception as e:
-            self._content.update(f"[red]Connection error: {e}[/]")
+        self._mqtt.subscribe("emf/weather/#", self._mqtt_on_message)
         self.set_interval(0.1, self._poll)
 
-    def watch_status(self, status: str):
-        dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
-        color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
-        self.query_one(".tile-header", Static).update(
-            f"[bold]MQTT[/] [dim]— emf/weather[/]  [{color[status]}]{dot[status]}[/]"
-        )
-
-    def _mqtt_on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            client.subscribe("emf/weather/#")
-            self.status = "connected"
-        else:
-            self.status = "disconnected"
-
-    def _mqtt_on_disconnect(self, client, userdata, rc):
-        self.status = "disconnected"
-
-    def _mqtt_on_message(self, client, userdata, msg):
+    def _mqtt_on_message(self, msg):
         key = msg.topic.split("/")[-1]
         try:
             payload = msg.payload.decode("utf-8")
@@ -82,7 +55,7 @@ class WeatherTile(Static):
             return ""
         try:
             d = float(degrees) % 360
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return "?"
         dirs = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"]
         return dirs[round(d / 45) % 8]
