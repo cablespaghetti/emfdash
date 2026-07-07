@@ -48,7 +48,7 @@ class MQTTTile(Static):
         dot = {"connected": "●", "disconnected": "○", "connecting": "◐"}
         color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
         self.query_one(".tile-header", Static).update(
-            f"[bold {color[status]}]{dot[status]} {self.topic}[/]"
+            f"[bold]MQTT[/] [dim]— {self.topic}[/]  [{color[status]}]{dot[status]}[/]"
         )
 
     def _mqtt_on_connect(self, client, userdata, flags, rc):
@@ -113,10 +113,9 @@ class EmfDashApp(App):
     }
 
     .tile-header {
-        text-align: center;
-        padding: 1 0;
-        background: $surface;
-        text-style: bold;
+        padding: 0 1;
+        background: $panel;
+        color: $text;
     }
 
     .tile-log {
@@ -131,8 +130,7 @@ class EmfDashApp(App):
             yield MQTTTile("open/the-ducks", DUCK)
 
     def on_mount(self):
-        self.title = "EMF Camp Dashboard"
-        self.sub_title = "MQTT"
+        self.title = "🌑 EMFDash 🌑"
 
 
 if __name__ == "__main__":
