@@ -19,29 +19,47 @@ class EmfDashApp(App):
     }
 
     Vertical {
-        width: 1fr;
         height: 100%;
     }
 
-    #astley, #weather, #ducks, #talks, #schedule {
+    #left-col {
+        width: 2fr;
+    }
+
+    #right-col {
+        width: 1fr;
+    }
+
+    #astley, #ducks, #schedule {
         height: 1fr;
     }
 
-    #astley {
-        border: round #7dcfff;
-        margin: 0 1 0 1;
+    #talks {
+        height: 2fr;
+        border: round #7aa2f7;
+        margin: 0 1 1 1;
     }
 
-    #astley:focus {
+    #talks:focus {
         border: round $accent;
     }
 
     #weather {
+        height: 1fr;
         border: round #e0af68;
-        margin: 0 1 0 1;
+        margin: 0 1 1 1;
     }
 
     #weather:focus {
+        border: round $accent;
+    }
+
+    #astley {
+        border: round #7dcfff;
+        margin: 0 1 1 1;
+    }
+
+    #astley:focus {
         border: round $accent;
     }
 
@@ -65,15 +83,6 @@ class EmfDashApp(App):
         padding: 1 2;
         overflow-y: auto;
         overflow-x: hidden;
-    }
-
-    #talks {
-        border: round #7aa2f7;
-        margin: 0 1 1 1;
-    }
-
-    #talks:focus {
-        border: round $accent;
     }
 
     #weather-content, #schedule-content {
@@ -122,12 +131,12 @@ class EmfDashApp(App):
     def compose(self):
         yield Header(show_clock=True)
         with Horizontal():
-            with Vertical():
+            with Vertical(id="left-col"):
+                yield ScheduleTile(id="talks")
+                yield WeatherTile(self._mqtt, id="weather")
+            with Vertical(id="right-col"):
                 yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
                 yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
-            with Vertical():
-                yield WeatherTile(self._mqtt, id="weather")
-                yield ScheduleTile(id="talks")
                 yield FilmTile(id="schedule")
 
     def on_mount(self):
