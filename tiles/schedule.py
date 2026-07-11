@@ -2,6 +2,7 @@ import httpx
 from datetime import datetime
 
 from rich.table import Table
+from textual.events import Resize
 from textual.widgets import RichLog, Static
 
 from tiles.common import format_day
@@ -39,6 +40,10 @@ class ScheduleTile(Static):
         self._content.write("[dim]Loading\u2026[/]")
         self.set_interval(120, self._fetch_schedule)
         await self._fetch_schedule()
+
+    def on_resize(self, event: Resize) -> None:
+        if self._stages:
+            self._redraw()
 
     async def _fetch_schedule(self):
         try:
@@ -126,12 +131,13 @@ class ScheduleTile(Static):
         day_part = f" — {self._day_label}" if self._day_label else ""
         self._header.update(f"[bold]Schedule[/] [dim]— {self._label}{day_part}[/]")
         self._content.clear()
-        table = Table.grid(padding=(0, 2), expand=True)
+        table = Table.grid(padding=0, expand=True)
         table.add_column(ratio=1)
-        table.add_column(width=15, justify="right")
+        table.add_column(width=12, justify="right")
+        table.add_column(width=3)
 
         for venue, talks in self._stages.items():
-            table.add_row(f"[bold]{venue}[/]", "")
+            table.add_row(f"[bold]{venue}[/]", "", "")
             for talk in talks:
                 occ = talk.get("occurrences", [{}])[0]
                 st = occ.get("start_time", "")
@@ -142,7 +148,7 @@ class ScheduleTile(Static):
                 left = title
                 if speaker:
                     left += f"  [dim]{speaker}[/]"
-                table.add_row(f"  {left}", time_str)
+                table.add_row(f"  {left}", time_str, "")
 
         self._content.write(table, expand=True, shrink=True, scroll_end=False)
         self._content.scroll_home(animate=False)
