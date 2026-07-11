@@ -1,6 +1,7 @@
 import queue
 from datetime import datetime
 
+from rich.table import Table
 from rich.text import Text
 from textual.events import Resize
 from textual.widgets import RichLog, Static
@@ -33,12 +34,12 @@ class MQTTLog(RichLog):
         self._widest_line_width = 0
         self._start_line = 0
         for ts, payload in self._messages:
-            line = Text.assemble(
-                (f"{self._emoji} {ts} │ ", "dim"),
-                (payload, ""),
-            )
-            line.overflow = "fold"
-            self.write(line, expand=True, shrink=True, scroll_end=False)
+            table = Table.grid(padding=0, expand=True)
+            table.add_column(width=3)  # emoji + trailing space
+            table.add_column(ratio=1)  # payload
+            table.add_column(width=9, justify="right")  # leading space + timestamp
+            table.add_row(self._emoji, payload, Text(ts, style="dim"))
+            self.write(table, expand=True, shrink=True, scroll_end=False)
         self.scroll_end(animate=False, immediate=True)
 
 
