@@ -1,0 +1,65 @@
+{
+  "stage-a": [
+    {
+      "id": 1,
+      "type": "talk",
+      "names": "Alice Smith",
+      "title": "Opening Talk",
+      "occurrences": [
+        {
+          "start_time": "10:00",
+          "end_time": "10:30",
+          "venue": "Stage A",
+          "start_date": "2026-07-17 10:00:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "talk",
+      "names": "Bob Jones",
+      "title": "Building Things",
+      "occurrences": [
+        {
+          "start_time": "11:00",
+          "end_time": "11:40",
+          "venue": "Stage A",
+          "start_date": "2026-07-17 11:00:00"
+        }
+      ]
+    }
+  ],
+  "stage-b": [
+    {
+      "id": 3,
+      "type": "workshop",
+      "names": "Carol Lee",
+      "title": "Workshop Demo",
+      "occurrences": [
+        {
+          "start_time": "11:00",
+          "end_time": "11:30",
+          "venue": "Stage B",
+          "start_date": "2026-07-17 11:00:00"
+        }
+      ]
+    }
+  ],
+  "stage-c": [],
+  "workshop-1": [
+    {
+      "id": 99,
+      "type": "talk",
+      "names": "Dave",
+      "title": "Non-stage talk",
+      "occurrences": [
+        {
+          "start_time": "12:00",
+          "end_time": "13:00",
+          "venue": "Workshop 1",
+          "start_date": "2026-07-17 12:00:00"
+        }
+      ]
+    }
+  ]
+}

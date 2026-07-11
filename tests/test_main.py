@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from tiles import MQTTTile, ScheduleTile, WeatherTile
+from tiles import MQTTTile, ScheduleTile, TalksTile, WeatherTile
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
@@ -262,3 +262,148 @@ class TestScheduleTile:
     )
     def test_format_day(self, ts, expected):
         assert ScheduleTile._format_day(ts) == expected
+
+
+NOW_AND_NEXT_FIXTURE = "tests/data/now_and_next.json"
+SCHEDULE_TALKS_FIXTURE = "tests/data/schedule_talks.json"
+
+
+class TestTalksTile:
+    @pytest.fixture
+    def tile(self):
+        t = TalksTile()
+        t._header = Mock()
+        t._content = Mock()
+        return t
+
+    def test_init(self):
+        t = TalksTile()
+        assert t._stages == {}
+        assert t._label == ""
+
+    def test_process_now_next_populates_stages(self, tile):
+        with open(NOW_AND_NEXT_FIXTURE) as f:
+            data = json.load(f)
+        tile._process_now_next(data)
+        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
+        assert len(tile._stages["Stage A"]) == 2
+        assert tile._stages["Stage A"][0]["id"] == 1
+        assert tile._stages["Stage A"][1]["id"] == 2
+        assert tile._stages["Stage B"][0]["id"] == 3
+        assert tile._label == "Now & Next"
+
+    def test_process_now_next_deduplicates(self, tile):
+        occ = [
+            {
+                "start_time": "10:00",
+                "venue": "Stage A",
+                "start_date": "2026-07-17 10:00:00",
+            }
+        ]
+        data = {
+            "stage-a": [
+                {"id": 1, "title": "A", "occurrences": occ},
+                {"id": 1, "title": "A dup", "occurrences": occ},
+                {"id": 2, "title": "B", "occurrences": occ},
+            ]
+        }
+        tile._process_now_next(data)
+        assert len(tile._stages["Stage A"]) == 2
+
+    def test_process_now_next_ignores_non_stages_and_empty(self, tile):
+        occ = [
+            {
+                "start_time": "10:00",
+                "venue": "Stage A",
+                "start_date": "2026-07-17 10:00:00",
+            }
+        ]
+        wocc = [
+            {
+                "start_time": "12:00",
+                "venue": "Workshop 1",
+                "start_date": "2026-07-17 12:00:00",
+            }
+        ]
+        data = {
+            "stage-a": [{"id": 1, "title": "A", "occurrences": occ}],
+            "stage-c": [],
+            "workshop-1": [{"id": 99, "title": "W", "occurrences": wocc}],
+        }
+        tile._process_now_next(data)
+        assert list(tile._stages.keys()) == ["Stage A"]
+
+    def test_process_now_next_empty_does_not_redraw(self, tile):
+        tile._process_now_next({})
+        assert tile._stages == {}
+        assert tile._label == ""
+        tile._content.update.assert_not_called()
+
+    def test_process_full_schedule_today(self, tile):
+        with open(SCHEDULE_TALKS_FIXTURE) as f:
+            items = json.load(f)
+        tile._process_full_schedule(items, "2026-07-17")
+        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
+        assert len(tile._stages["Stage A"]) == 2
+        assert tile._stages["Stage A"][0]["id"] == 10
+        assert tile._stages["Stage A"][1]["id"] == 11
+        assert tile._stages["Stage B"][0]["id"] == 12
+        assert tile._label == "Today"
+
+    def test_process_full_schedule_next_day(self, tile):
+        with open(SCHEDULE_TALKS_FIXTURE) as f:
+            items = json.load(f)
+        tile._process_full_schedule(items, "2026-07-15")
+        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
+        assert len(tile._stages["Stage A"]) == 2
+        assert tile._stages["Stage A"][0]["id"] == 10
+        assert tile._stages["Stage A"][1]["id"] == 11
+        assert tile._stages["Stage B"][0]["id"] == 12
+        assert tile._label == "Next day"
+
+    def test_process_full_schedule_no_talks(self, tile):
+        with open(SCHEDULE_TALKS_FIXTURE) as f:
+            items = json.load(f)
+        tile._process_full_schedule(items, "2026-07-20")
+        assert tile._stages == {}
+        tile._content.update.assert_called_once_with("[dim]No talks scheduled[/]")
+
+    def test_process_full_schedule_filters_non_stage_venues(self, tile):
+        with open(SCHEDULE_TALKS_FIXTURE) as f:
+            items = json.load(f)
+        tile._process_full_schedule(items, "2026-07-17")
+        for stage, talks in tile._stages.items():
+            for t in talks:
+                for occ in t.get("occurrences", []):
+                    assert occ["venue"] in ("Stage A", "Stage B")
+
+    def test_redraw(self, tile):
+        with open(NOW_AND_NEXT_FIXTURE) as f:
+            data = json.load(f)
+        tile._process_now_next(data)
+        from rich.table import Table
+
+        assert isinstance(tile._content.update.call_args[0][0], Table)
+
+    def test_first_redraw_header_and_content(self, tile):
+        tile._process_now_next(
+            {
+                "stage-a": [
+                    {
+                        "id": 1,
+                        "title": "T",
+                        "occurrences": [
+                            {
+                                "start_time": "10:00",
+                                "end_time": "11:00",
+                                "venue": "Stage A",
+                                "start_date": "2026-07-17 10:00:00",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        tile._header.update.assert_called_with(
+            "[bold]Schedule[/] [dim]\u2014 Now & Next[/]"
+        )
