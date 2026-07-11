@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from tiles import MQTTTile, ScheduleTile, TalksTile, WeatherTile
+from tiles import FilmTile, MQTTTile, ScheduleTile, WeatherTile
 from tiles.common import format_day
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
@@ -207,16 +207,16 @@ class TestWeatherCsvFixture:
 SCHEDULE_FIXTURE = "tests/data/schedule_today.json"
 
 
-class TestScheduleTile:
+class TestFilmTile:
     @pytest.fixture
     def tile(self):
-        t = ScheduleTile()
+        t = FilmTile()
         t._header = Mock()
         t._content = Mock()
         return t
 
     def test_init_has_empty_films(self):
-        t = ScheduleTile()
+        t = FilmTile()
         assert t._films == []
         assert t._day_label == ""
 
@@ -270,16 +270,16 @@ class TestScheduleTile:
 NOW_AND_NEXT_FIXTURE = "tests/data/now_and_next.json"
 
 
-class TestTalksTile:
+class TestScheduleTile:
     @pytest.fixture
     def tile(self):
-        t = TalksTile()
+        t = ScheduleTile()
         t._header = Mock()
         t._content = Mock()
         return t
 
     def test_init(self):
-        t = TalksTile()
+        t = ScheduleTile()
         assert t._stages == {}
         assert t._label == ""
 

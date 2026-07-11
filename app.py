@@ -4,7 +4,7 @@ from textual.widgets import Header
 
 from constants import DUCK, RICK
 from mqtt import MqttManager
-from tiles import MQTTTile, ScheduleTile, TalksTile, WeatherTile
+from tiles import FilmTile, MQTTTile, ScheduleTile, WeatherTile
 
 
 class EmfDashApp(App):
@@ -111,8 +111,8 @@ class EmfDashApp(App):
                 yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
             with Vertical():
                 yield WeatherTile(self._mqtt, id="weather")
-                yield TalksTile(id="talks")
-                yield ScheduleTile(id="schedule")
+                yield ScheduleTile(id="talks")
+                yield FilmTile(id="schedule")
 
     def on_mount(self):
         self.title = "EMFDash"
