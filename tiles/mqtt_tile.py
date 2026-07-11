@@ -1,62 +1,45 @@
 import queue
 from datetime import datetime
 
-from rich.table import Table
-from textual.geometry import Size
-from textual.scroll_view import ScrollView
-from textual.strip import Strip
-from textual.widgets import Static
+from rich.text import Text
+from textual.events import Resize
+from textual.widgets import RichLog, Static
 
 from mqtt import MqttManager
 
 
-class MQTTLog(ScrollView):
+class MQTTLog(RichLog):
     def __init__(self, emoji: str, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(max_lines=200, wrap=True, min_width=0, **kwargs)
         self._emoji = emoji
         self._messages: list[tuple[str, str]] = []
-        self._dirty = False
-        self._rendered_lines: list[Strip] = []
 
     def add_message(self, ts: str, payload: str) -> None:
         self._messages.append((ts, payload))
-        self._dirty = True
-
-    def rebuild(self) -> None:
-        if not self._dirty or self.size.width <= 0:
-            return
-        self._dirty = False
-
         if len(self._messages) > 200:
             self._messages = self._messages[-200:]
+        if self._size_known:
+            self._render_messages()
 
-        table = Table.grid(padding=(0, 2), expand=True)
-        table.add_column(width=4)
-        table.add_column(ratio=1)
-        table.add_column(width=8)
+    def on_resize(self, event: Resize) -> None:
+        super().on_resize(event)
+        self._render_messages()
+
+    def _render_messages(self) -> None:
+        if not self._messages:
+            return
+        self.lines.clear()
+        self._line_cache.clear()
+        self._widest_line_width = 0
+        self._start_line = 0
         for ts, payload in self._messages:
-            table.add_row(self._emoji, payload, ts)
-
-        width = max(1, self.content_region.width)
-        options = self.app.console.options.update(width=width)
-        lines = self.app.console.render_lines(table, options)
-        self._rendered_lines = [Strip(segments, width) for segments in lines]
-        self.virtual_size = Size(width, len(self._rendered_lines))
-        self.scroll_end(animate=False, immediate=True, x_axis=False)
-        self.refresh()
-
-    def render_line(self, y: int) -> Strip:
-        scroll_x, scroll_y = self.scroll_offset
-        real_y = scroll_y + y
-        width = self.size.width
-        rich_style = self.rich_style
-
-        if real_y >= len(self._rendered_lines):
-            return Strip.blank(width, rich_style)
-
-        strip = self._rendered_lines[real_y]
-        strip = strip.crop_extend(scroll_x, scroll_x + width, rich_style)
-        return strip
+            line = Text.assemble(
+                (f"{self._emoji} {ts} │ ", "dim"),
+                (payload, ""),
+            )
+            line.overflow = "fold"
+            self.write(line, expand=True, shrink=True, scroll_end=False)
+        self.scroll_end(animate=False, immediate=True)
 
 
 class MQTTTile(Static):
@@ -94,4 +77,3 @@ class MQTTTile(Static):
                 self._log.add_message(ts, payload)
         except queue.Empty:
             pass
-        self._log.rebuild()

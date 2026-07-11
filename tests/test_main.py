@@ -58,7 +58,6 @@ class TestMQTTTile:
         tile._poll()
         assert tile._queue.empty()
         assert tile._log.add_message.call_count == 2
-        assert tile._log.rebuild.called
 
 
 class TestWeatherTile:
