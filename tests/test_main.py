@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from tiles import FilmTile, MQTTTile, ScheduleTile, WeatherTile
+from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 from tiles.common import format_day
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
@@ -65,6 +65,7 @@ class TestWeatherTile:
     @pytest.fixture
     def tile(self):
         t = WeatherTile(make_mqtt())
+        t._header = Mock()
         t._content = Mock()
         return t
 
@@ -138,6 +139,20 @@ CSV_FIXTURES = [
 ]
 
 
+PHONES_CSV_PATHS = [
+    "tests/data/phones_answer-rate.csv",
+    "tests/data/phones_avg-call-seconds.csv",
+    "tests/data/phones_calls-24h.csv",
+    "tests/data/phones_calls-answered.csv",
+    "tests/data/phones_longest-call-seconds.csv",
+    "tests/data/phones_numbers-assigned.csv",
+    "tests/data/phones_numbers-by-service.csv",
+    "tests/data/phones_phones-online.csv",
+    "tests/data/phones_talk-seconds.csv",
+    "tests/data/phones_voicemail-messages.csv",
+]
+
+
 class TestCsvFixtures:
     @pytest.mark.parametrize("topic,path,emoji", CSV_FIXTURES)
     def test_csv_parses(self, topic, path, emoji):
@@ -163,6 +178,35 @@ class TestCsvFixtures:
         assert tile._queue.empty()
 
 
+class TestPhoneCsvFixtures:
+    @pytest.mark.parametrize("path", PHONES_CSV_PATHS)
+    def test_csv_parses(self, path):
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            rows = list(reader)
+        assert len(rows) > 0
+        for row in rows:
+            assert row["Timestamp"]
+            assert row["Date"]
+            assert row["Value"]
+
+    @pytest.mark.parametrize("path", PHONES_CSV_PATHS)
+    def test_messages_populate_data(self, path):
+        key = path.removeprefix("tests/data/phones_").removesuffix(".csv")
+        tile = PhoneTile(make_mqtt())
+        tile._header = Mock()
+        tile._content = Mock()
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            rows = []
+            for row in reader:
+                rows.append(row)
+                tile._mqtt_on_message(msg(f"phones/{key}", row["Value"]))
+        assert tile._queue.qsize() > 0
+        tile._poll()
+        assert tile._data[key] == rows[-1]["Value"]
+
+
 WEATHER_FIXTURE = "tests/data/emf_weather.csv"
 
 
@@ -180,6 +224,7 @@ class TestWeatherCsvFixture:
 
     def test_messages_populate_data(self):
         tile = WeatherTile(make_mqtt())
+        tile._header = Mock()
         tile._content = Mock()
         with open(WEATHER_FIXTURE, newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
@@ -195,6 +240,7 @@ class TestWeatherCsvFixture:
 
     def test_last_timestamp_sets_correct_art(self):
         tile = WeatherTile(make_mqtt())
+        tile._header = Mock()
         tile._content = Mock()
         with open(WEATHER_FIXTURE, newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
@@ -202,6 +248,64 @@ class TestWeatherCsvFixture:
                 tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
         tile._poll()
         assert tile._get_weather_art() == SUNNY
+
+
+PHONES_TOPICS = {
+    "phones-online": "5",
+    "numbers-assigned": "1934",
+    "calls-24h": "708",
+    "answer-rate": "0.713",
+    "calls-answered": "5129",
+    "avg-call-seconds": "35",
+    "longest-call-seconds": "6342",
+    "talk-seconds": "179683",
+    "voicemail-messages": "21",
+}
+
+
+class TestPhoneTile:
+    @pytest.fixture
+    def tile(self):
+        t = PhoneTile(make_mqtt())
+        t._header = Mock()
+        t._content = Mock()
+        return t
+
+    def test_init(self, tile):
+        assert tile._data == {}
+        assert tile._last_update is None
+
+    def test_on_message_queues_by_key(self, tile):
+        tile._mqtt_on_message(msg("phones/phones-online", "5"))
+        key, val = tile._queue.get_nowait()
+        assert key == "phones-online"
+        assert val == "5"
+
+    def test_poll_updates_data(self, tile):
+        for k, v in PHONES_TOPICS.items():
+            tile._mqtt_on_message(msg(f"phones/{k}", v))
+        tile._poll()
+        assert tile._data["phones-online"] == "5"
+        assert tile._data["calls-24h"] == "708"
+        assert tile._data["talk-seconds"] == "179683"
+        assert tile._last_update is not None
+
+    def test_redraw_with_data(self, tile):
+        for k, v in PHONES_TOPICS.items():
+            tile._mqtt_on_message(msg(f"phones/{k}", v))
+        tile._poll()
+        tile._content.update.assert_called_once()
+        output = tile._content.update.call_args[0][0]
+        assert "5" in output
+        assert "1,934" in output
+        assert "71%" in output
+        assert "35s" in output
+        assert "1h" in output and "45m" in output or "longest" in output.lower()
+
+    def test_redraw_without_data_shows_waiting(self, tile):
+        tile._redraw()
+        output = tile._content.update.call_args[0][0]
+        assert "---" in output
 
 
 SCHEDULE_FIXTURE = "tests/data/schedule_today.json"

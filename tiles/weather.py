@@ -18,10 +18,11 @@ class WeatherTile(Static):
         self._queue: queue.Queue = queue.Queue(maxsize=200)
 
     def compose(self):
-        yield Static("[bold]MQTT[/] [dim]— emf/weather[/]", classes="tile-header")
+        yield Static("[bold]Weather[/] [dim]— from MQTT[/]", classes="tile-header")
         yield Static(id="weather-content")
 
     def on_mount(self):
+        self._header = self.query_one(".tile-header", Static)
         self._content = self.query_one("#weather-content", Static)
         self._redraw()
         self._mqtt.subscribe("emf/weather/#", self._mqtt_on_message)
@@ -128,8 +129,6 @@ class WeatherTile(Static):
                 f"  Wind {ws}",
                 f"  Rain {r}",
                 f"  Pressure {p}",
-                "",
-                f"  Last updated {last}",
             ]
         )
 
@@ -138,3 +137,4 @@ class WeatherTile(Static):
         table.add_column(ratio=1)
         table.add_row(f"[bold cyan]{art}[/]", data)
         self._content.update(table)
+        self._header.update(f"[bold]Weather[/] [dim]— updated {last}[/]")

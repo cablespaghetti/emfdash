@@ -4,7 +4,7 @@ from textual.widgets import Header
 
 from constants import DUCK, RICK
 from mqtt import MqttManager
-from tiles import FilmTile, MQTTTile, ScheduleTile, WeatherTile
+from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 
 
 class EmfDashApp(App):
@@ -45,13 +45,29 @@ class EmfDashApp(App):
     }
 
     #weather {
-        height: 1fr;
         border: round #e0af68;
-        margin: 0 1 1 1;
     }
 
     #weather:focus {
         border: round $accent;
+    }
+
+    #phones {
+        border: round #f7768e;
+    }
+
+    #phones:focus {
+        border: round $accent;
+    }
+
+    #bottom-left {
+        height: 1fr;
+        margin: 0 1 1 1;
+    }
+
+    #bottom-left > #weather, #bottom-left > #phones {
+        height: 100%;
+        width: 1fr;
     }
 
     #astley {
@@ -85,7 +101,7 @@ class EmfDashApp(App):
         overflow-x: hidden;
     }
 
-    #weather-content, #schedule-content {
+    #weather-content, #schedule-content, #phone-content {
         height: 1fr;
         padding: 1 2;
     }
@@ -133,7 +149,9 @@ class EmfDashApp(App):
         with Horizontal():
             with Vertical(id="left-col"):
                 yield ScheduleTile(id="talks")
-                yield WeatherTile(self._mqtt, id="weather")
+                with Horizontal(id="bottom-left"):
+                    yield WeatherTile(self._mqtt, id="weather")
+                    yield PhoneTile(self._mqtt, id="phones")
             with Vertical(id="right-col"):
                 yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
                 yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
