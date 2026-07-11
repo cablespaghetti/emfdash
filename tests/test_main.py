@@ -341,15 +341,18 @@ class TestScheduleTile:
         tile._process_now_next({})
         assert tile._stages == {}
         assert tile._label == ""
-        tile._content.write.assert_not_called()
+        tile._content.append.assert_not_called()
 
     def test_redraw(self, tile):
         with open(NOW_AND_NEXT_FIXTURE) as f:
             data = json.load(f)
         tile._process_now_next(data)
-        from rich.table import Table
 
-        assert isinstance(tile._content.write.call_args[0][0], Table)
+        calls = tile._content.append.call_args_list
+        assert len(calls) > 0
+        items = [c[0][0] for c in calls]
+        talk_items = [i for i in items if hasattr(i, "talk_data")]
+        assert len(talk_items) == 4
 
     def test_first_redraw_header_and_content(self, tile):
         tile._process_now_next(

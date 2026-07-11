@@ -3,7 +3,7 @@ from datetime import datetime
 
 from rich.table import Table
 from textual.events import Resize
-from textual.widgets import RichLog, Static
+from textual.widgets import ListItem, ListView, Static
 
 from tiles.common import format_day
 
@@ -31,13 +31,12 @@ class ScheduleTile(Static):
 
     def compose(self):
         yield Static(id="talks-header", classes="tile-header")
-        yield RichLog(id="talks-content", wrap=True, highlight=True, min_width=0)
+        yield ListView(id="talks-content")
 
     async def on_mount(self):
         self._header = self.query_one("#talks-header", Static)
-        self._content = self.query_one("#talks-content", RichLog)
+        self._content = self.query_one("#talks-content", ListView)
         self._header.update("[bold]Schedule[/] [dim]— Loading\u2026[/]")
-        self._content.write("[dim]Loading\u2026[/]")
         self.set_interval(120, self._fetch_schedule)
         await self._fetch_schedule()
 
@@ -53,8 +52,6 @@ class ScheduleTile(Static):
                 data = r.json()
         except Exception:
             self._header.update("[bold]Schedule[/] [dim]— Error[/]")
-            self._content.clear()
-            self._content.write("[dim]Unable to load schedule[/]")
             return
 
         self._process_now_next(data)
@@ -131,13 +128,11 @@ class ScheduleTile(Static):
         day_part = f" — {self._day_label}" if self._day_label else ""
         self._header.update(f"[bold]Schedule[/] [dim]— {self._label}{day_part}[/]")
         self._content.clear()
-        table = Table.grid(padding=0, expand=True)
-        table.add_column(ratio=1)
-        table.add_column(width=12, justify="right")
-        table.add_column(width=3)
 
         for venue, talks in self._stages.items():
-            table.add_row(f"[bold]{venue}[/]", "", "")
+            header = ListItem(Static(f"[bold]{venue}[/]"), classes="venue-header")
+            self._content.append(header)
+
             for talk in talks:
                 occ = talk.get("occurrences", [{}])[0]
                 st = occ.get("start_time", "")
@@ -145,10 +140,36 @@ class ScheduleTile(Static):
                 time_str = f"{st}\u2013{et}" if et else st
                 title = talk.get("title", "?")
                 speaker = talk.get("names", "")
+
+                table = Table.grid(padding=0, expand=True)
+                table.add_column(ratio=1)
+                table.add_column(width=12, justify="right")
+                table.add_column(width=3)
+
                 left = title
                 if speaker:
                     left += f"  [dim]{speaker}[/]"
                 table.add_row(f"  {left}", time_str, "")
 
-        self._content.write(table, expand=True, shrink=True, scroll_end=False)
-        self._content.scroll_home(animate=False)
+                item = ListItem(Static(table, expand=True))
+                item.talk_data = talk
+                item.venue = venue
+                self._content.append(item)
+
+        if self._content.children:
+            try:
+                for i, child in enumerate(self._content.children):
+                    if hasattr(child, "talk_data"):
+                        self._content.index = i
+                        break
+            except TypeError:
+                pass
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        talk = getattr(item, "talk_data", None)
+        venue = getattr(item, "venue", None)
+        if talk is not None:
+            from tiles.talk_detail import TalkDetailScreen
+
+            self.app.push_screen(TalkDetailScreen(talk, venue))

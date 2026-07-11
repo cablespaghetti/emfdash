@@ -83,9 +83,25 @@ class EmfDashApp(App):
 
     #talks-content {
         height: 1fr;
-        padding: 1 2;
+        padding: 0 2;
         overflow-y: auto;
         overflow-x: hidden;
+    }
+
+    #talks-content > ListItem {
+        padding: 0 1;
+    }
+
+    #talks-content > ListItem:focus {
+        background: $accent 30%;
+    }
+
+    #talks-content > ListItem.venue-header {
+        padding: 1 1 0 1;
+    }
+
+    #talks-content > ListItem.venue-header:focus {
+        background: $boost;
     }
 
     #schedule {
