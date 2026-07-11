@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from tiles import MQTTTile, ScheduleTile, TalksTile, WeatherTile
+from tiles.common import format_day
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
@@ -261,11 +262,12 @@ class TestScheduleTile:
         ],
     )
     def test_format_day(self, ts, expected):
-        assert ScheduleTile._format_day(ts) == expected
+        from datetime import datetime
+
+        assert format_day(datetime.fromisoformat(ts)) == expected
 
 
 NOW_AND_NEXT_FIXTURE = "tests/data/now_and_next.json"
-SCHEDULE_TALKS_FIXTURE = "tests/data/schedule_talks.json"
 
 
 class TestTalksTile:
@@ -285,7 +287,9 @@ class TestTalksTile:
         with open(NOW_AND_NEXT_FIXTURE) as f:
             data = json.load(f)
         tile._process_now_next(data)
-        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
+        assert "Stage A" in tile._stages
+        assert "Stage B" in tile._stages
+        assert "Workshop 1" in tile._stages
         assert len(tile._stages["Stage A"]) == 2
         assert tile._stages["Stage A"][0]["id"] == 1
         assert tile._stages["Stage A"][1]["id"] == 2
@@ -310,7 +314,7 @@ class TestTalksTile:
         tile._process_now_next(data)
         assert len(tile._stages["Stage A"]) == 2
 
-    def test_process_now_next_ignores_non_stages_and_empty(self, tile):
+    def test_process_now_next_includes_all_venues(self, tile):
         occ = [
             {
                 "start_time": "10:00",
@@ -331,51 +335,13 @@ class TestTalksTile:
             "workshop-1": [{"id": 99, "title": "W", "occurrences": wocc}],
         }
         tile._process_now_next(data)
-        assert list(tile._stages.keys()) == ["Stage A"]
+        assert list(tile._stages.keys()) == ["Stage A", "Workshop 1"]
 
     def test_process_now_next_empty_does_not_redraw(self, tile):
         tile._process_now_next({})
         assert tile._stages == {}
         assert tile._label == ""
-        tile._content.update.assert_not_called()
-
-    def test_process_full_schedule_today(self, tile):
-        with open(SCHEDULE_TALKS_FIXTURE) as f:
-            items = json.load(f)
-        tile._process_full_schedule(items, "2026-07-17")
-        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
-        assert len(tile._stages["Stage A"]) == 2
-        assert tile._stages["Stage A"][0]["id"] == 10
-        assert tile._stages["Stage A"][1]["id"] == 11
-        assert tile._stages["Stage B"][0]["id"] == 12
-        assert tile._label == "Today"
-
-    def test_process_full_schedule_next_day(self, tile):
-        with open(SCHEDULE_TALKS_FIXTURE) as f:
-            items = json.load(f)
-        tile._process_full_schedule(items, "2026-07-15")
-        assert list(tile._stages.keys()) == ["Stage A", "Stage B"]
-        assert len(tile._stages["Stage A"]) == 2
-        assert tile._stages["Stage A"][0]["id"] == 10
-        assert tile._stages["Stage A"][1]["id"] == 11
-        assert tile._stages["Stage B"][0]["id"] == 12
-        assert tile._label == "Next day"
-
-    def test_process_full_schedule_no_talks(self, tile):
-        with open(SCHEDULE_TALKS_FIXTURE) as f:
-            items = json.load(f)
-        tile._process_full_schedule(items, "2026-07-20")
-        assert tile._stages == {}
-        tile._content.update.assert_called_once_with("[dim]No talks scheduled[/]")
-
-    def test_process_full_schedule_filters_non_stage_venues(self, tile):
-        with open(SCHEDULE_TALKS_FIXTURE) as f:
-            items = json.load(f)
-        tile._process_full_schedule(items, "2026-07-17")
-        for stage, talks in tile._stages.items():
-            for t in talks:
-                for occ in t.get("occurrences", []):
-                    assert occ["venue"] in ("Stage A", "Stage B")
+        tile._content.write.assert_not_called()
 
     def test_redraw(self, tile):
         with open(NOW_AND_NEXT_FIXTURE) as f:
@@ -383,7 +349,7 @@ class TestTalksTile:
         tile._process_now_next(data)
         from rich.table import Table
 
-        assert isinstance(tile._content.update.call_args[0][0], Table)
+        assert isinstance(tile._content.write.call_args[0][0], Table)
 
     def test_first_redraw_header_and_content(self, tile):
         tile._process_now_next(
@@ -404,6 +370,6 @@ class TestTalksTile:
                 ]
             }
         )
-        tile._header.update.assert_called_with(
-            "[bold]Schedule[/] [dim]\u2014 Now & Next[/]"
-        )
+        tile._header.update.assert_called_once()
+        header = tile._header.update.call_args[0][0]
+        assert "Now & Next" in header

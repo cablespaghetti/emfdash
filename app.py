@@ -23,22 +23,35 @@ class EmfDashApp(App):
         height: 100%;
     }
 
-    #astley {
+    #astley, #weather, #ducks, #talks, #schedule {
         height: 1fr;
+    }
+
+    #astley {
         border: round #7dcfff;
         margin: 0 1 0 1;
     }
 
+    #astley:focus {
+        border: round $accent;
+    }
+
     #weather {
-        height: 1fr;
         border: round #e0af68;
         margin: 0 1 0 1;
     }
 
+    #weather:focus {
+        border: round $accent;
+    }
+
     #ducks {
-        height: 1fr;
         border: round #9ece6a;
         margin: 0 1 1 1;
+    }
+
+    #ducks:focus {
+        border: round $accent;
     }
 
     .tile-header {
@@ -55,20 +68,33 @@ class EmfDashApp(App):
     }
 
     #talks {
-        height: 1fr;
         border: round #7aa2f7;
         margin: 0 1 1 1;
     }
 
-    #weather-content, #schedule-content, #talks-content {
+    #talks:focus {
+        border: round $accent;
+    }
+
+    #weather-content, #schedule-content {
         height: 1fr;
         padding: 1 2;
     }
 
-    #schedule {
+    #talks-content {
         height: 1fr;
+        padding: 1 2;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    #schedule {
         border: round #bb9af7;
         margin: 0 1 1 1;
+    }
+
+    #schedule:focus {
+        border: round $accent;
     }
     """
 

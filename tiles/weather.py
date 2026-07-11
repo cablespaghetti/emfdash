@@ -11,6 +11,7 @@ from mqtt import MqttManager
 class WeatherTile(Static):
     def __init__(self, mqtt: MqttManager, **kwargs):
         super().__init__(**kwargs)
+        self.can_focus = True
         self._mqtt = mqtt
         self._data: dict[str, str] = {}
         self._last_update: datetime | None = None

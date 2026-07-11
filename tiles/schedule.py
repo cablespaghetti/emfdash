@@ -4,13 +4,15 @@ from datetime import datetime
 from rich.table import Table
 from textual.widgets import Static
 
+from tiles.common import format_day
+
 SCHEDULE_URL = "https://films.emfcamp.org/schedule.json"
-_ORDINALS = {1: "st", 2: "nd", 3: "rd", 21: "st", 22: "nd", 23: "rd", 31: "st"}
 
 
 class ScheduleTile(Static):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.can_focus = True
         self._films: list[dict] = []
         self._day_label = ""
         self._error: str | None = None
@@ -61,9 +63,8 @@ class ScheduleTile(Static):
                 self._films = [
                     f for f in all_films if f["showing"]["timestamp"][:10] == next_day
                 ]
-                self._day_label = self._format_day(
-                    self._films[0]["showing"]["timestamp"]
-                )
+                d = datetime.fromisoformat(self._films[0]["showing"]["timestamp"])
+                self._day_label = format_day(d)
             else:
                 self._films = []
                 self._day_label = ""
@@ -88,9 +89,3 @@ class ScheduleTile(Static):
             table.add_row("🎬", f["title"], time_str, f["runTime"]["text"])
 
         self._content.update(table)
-
-    @staticmethod
-    def _format_day(ts: str) -> str:
-        d = datetime.fromisoformat(ts)
-        suffix = _ORDINALS.get(d.day, "th")
-        return f"{d.strftime('%A')} {d.day}{suffix}"
