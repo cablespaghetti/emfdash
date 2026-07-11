@@ -1,8 +1,13 @@
 """Shared MQTT connection manager."""
 
+import socket
+import time
+
 import paho.mqtt.client as mqtt
 
 from constants import HOST, PORT
+
+_HEALTH_TIMEOUT = 60
 
 
 class MqttManager:
@@ -11,9 +16,12 @@ class MqttManager:
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message
+        self._client.on_socket_open = self._on_socket_open
+        self._client.reconnect_delay_set(min_delay=1, max_delay=60)
         self._handlers: list[tuple[str, callable]] = []
         self._status = "connecting"
         self._status_listeners: list[callable] = []
+        self._last_message_time = time.monotonic()
 
     @property
     def status(self) -> str:
@@ -21,18 +29,39 @@ class MqttManager:
 
     def on_status_change(self, listener: callable):
         self._status_listeners.append(listener)
+        listener(self._status)
 
     def subscribe(self, topic_filter: str, handler: callable):
         self._client.subscribe(topic_filter)
         self._handlers.append((topic_filter, handler))
 
     def start(self):
-        self._client.connect_async(HOST, PORT, 60)
+        self._client.connect_async(HOST, PORT, 15)
         self._client.loop_start()
 
     def stop(self):
         self._client.loop_stop()
         self._client.disconnect()
+
+    def check_health(self):
+        if self._status == "connected":
+            reconnect = False
+            try:
+                sock = self._client.socket()
+                err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+                if err != 0:
+                    reconnect = True
+            except (OSError, AttributeError):
+                pass
+            if not reconnect:
+                if time.monotonic() - self._last_message_time > _HEALTH_TIMEOUT:
+                    reconnect = True
+            if reconnect:
+                self._status = "connecting"
+                self._notify_status()
+                self._client.disconnect()
+                self._client.connect_async(HOST, PORT, 15)
+        return self._status
 
     def _notify_status(self):
         for listener in self._status_listeners:
@@ -41,6 +70,15 @@ class MqttManager:
     def _subscribe_all(self):
         for topic_filter, _ in self._handlers:
             self._client.subscribe(topic_filter)
+
+    def _on_socket_open(self, client, userdata, sock):
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 5)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+        except OSError:
+            pass
 
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         if reason_code == 0:
@@ -55,6 +93,7 @@ class MqttManager:
         self._notify_status()
 
     def _on_message(self, client, userdata, msg):
+        self._last_message_time = time.monotonic()
         for topic_filter, handler in self._handlers:
             if topic_filter.endswith("/#"):
                 if msg.topic.startswith(topic_filter[:-2]):

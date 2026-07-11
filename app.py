@@ -73,6 +73,7 @@ class EmfDashApp(App):
     def on_mount(self):
         self.title = "EMFDash"
         self._mqtt.start()
+        self.set_interval(15, self._check_mqtt)
 
     def format_title(self, title: str, sub_title: str) -> Content:
         title_content = Content(title)
@@ -84,6 +85,9 @@ class EmfDashApp(App):
                 sub_title_content.stylize("dim"),
             )
         return title_content
+
+    def _check_mqtt(self):
+        self._mqtt.check_health()
 
     def _on_mqtt_status(self, status: str):
         color = {"connected": "green", "disconnected": "red", "connecting": "yellow"}
