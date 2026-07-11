@@ -1,3 +1,4 @@
+import json
 import queue
 from datetime import datetime
 
@@ -26,6 +27,7 @@ class WeatherTile(Static):
         self._content = self.query_one("#weather-content", Static)
         self._redraw()
         self._mqtt.subscribe("emf/weather/#", self._mqtt_on_message)
+        self._mqtt.subscribe("weather/hq", self._mqtt_on_hq_message)
         self.set_interval(0.1, self._poll)
 
     def _mqtt_on_message(self, msg):
@@ -38,6 +40,38 @@ class WeatherTile(Static):
             self._queue.put_nowait((key, payload))
         except queue.Full:
             pass
+
+    def _mqtt_on_hq_message(self, msg):
+        try:
+            payload = msg.payload.decode("utf-8")
+        except UnicodeDecodeError:
+            return
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            return
+        mapping = {
+            "temp": "temp",
+            "feelslike": "feelslike",
+            "humidity": "humidity",
+            "windspeed": "windspeed",
+            "winddir": "winddir",
+            "windgust": "windgust",
+            "baromabs": "baromabs",
+            "solarradiation": "solarradiation",
+            "uv": "uv",
+            "rainrate": "rrain_piezo",
+            "hourlyrain": "hrain_piezo",
+            "dailyrain": "drain_piezo",
+            "weeklyrain": "wrain_piezo",
+            "eventrain": "erain_piezo",
+        }
+        for target, source in mapping.items():
+            val = data.get(source)
+            if val is not None:
+                self._data[target] = str(val)
+        self._last_update = datetime.now()
+        self._redraw()
 
     def _poll(self):
         updated = False
@@ -94,27 +128,31 @@ class WeatherTile(Static):
         humidity = self._data.get("humidity")
         wind_speed = self._data.get("windspeed")
         wind_dir = self._data.get("winddir")
+        wind_gust = self._data.get("windgust")
+        uv = self._data.get("uv")
+        rain_rate = self._data.get("rainrate")
+        hourly_rain = self._data.get("hourlyrain")
         daily_rain = self._data.get("dailyrain")
+        event_rain = self._data.get("eventrain")
         pressure = self._data.get("baromabs")
 
-        t = f"[bold]{temp}°C[/]" if temp is not None else "[dim]Waiting...[/]"
-        f = f"[bold]{feelslike}°C[/]" if feelslike is not None else "[dim]Waiting...[/]"
-        h = f"[bold]{humidity}%[/]" if humidity is not None else "[dim]Waiting...[/]"
-        ws = (
-            f"[bold]{wind_speed}[/] {self._wind_arrow(wind_dir)}"
-            if wind_speed is not None
-            else "[dim]Waiting...[/]"
-        )
-        r = (
-            f"[bold]{daily_rain} mm[/]"
-            if daily_rain is not None
-            else "[dim]Waiting...[/]"
-        )
-        p = (
-            f"[bold]{pressure} mbar[/]"
-            if pressure is not None
-            else "[dim]Waiting...[/]"
-        )
+        w = "[dim]Waiting...[/]"
+        t = f"[bold]{temp}°C[/]" if temp is not None else w
+        f = f"[bold]{feelslike}°C[/]" if feelslike is not None else w
+        h = f"[bold]{humidity}%[/]" if humidity is not None else w
+        u = f"[bold]{uv}[/]" if uv is not None else "[dim]---[/]"
+        rr = f"[bold]{rain_rate} mm/hr[/]" if rain_rate is not None else "[dim]---[/]"
+        hr = f"[bold]{hourly_rain} mm[/]" if hourly_rain is not None else "[dim]---[/]"
+        dr = f"[bold]{daily_rain} mm[/]" if daily_rain is not None else "[dim]---[/]"
+        er = f"[bold]{event_rain} mm[/]" if event_rain is not None else "[dim]---[/]"
+        p = f"[bold]{pressure} mbar[/]" if pressure is not None else w
+
+        if wind_speed is not None:
+            gust = f" gust {wind_gust}" if wind_gust is not None else ""
+            ws = f"[bold]{wind_speed} mph[/] {self._wind_arrow(wind_dir)}{gust}"
+        else:
+            ws = w
+
         last = (
             self._last_update.strftime("%H:%M:%S")
             if self._last_update
@@ -126,14 +164,15 @@ class WeatherTile(Static):
                 f"  Temp {t}",
                 f"  Feels like {f}",
                 f"  Humidity {h}",
+                f"  UV {u}",
                 f"  Wind {ws}",
-                f"  Rain {r}",
+                f"  Rain {rr} | 1h {hr} | 24h {dr} | ev {er}",
                 f"  Pressure {p}",
             ]
         )
 
-        table = Table.grid(padding=(2, 2))
-        table.add_column(width=22)
+        table = Table.grid(padding=(0, 1))
+        table.add_column(width=15)
         table.add_column(ratio=1)
         table.add_row(f"[bold cyan]{art}[/]", data)
         self._content.update(table)

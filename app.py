@@ -65,7 +65,12 @@ class EmfDashApp(App):
         margin: 0 1 1 1;
     }
 
-    #bottom-left > #weather, #bottom-left > #phones {
+    #bottom-left > #weather {
+        height: 100%;
+        width: 2fr;
+    }
+
+    #bottom-left > #phones {
         height: 100%;
         width: 1fr;
     }
@@ -104,6 +109,7 @@ class EmfDashApp(App):
     #weather-content, #schedule-content, #phone-content {
         height: 1fr;
         padding: 1 2;
+        overflow-y: auto;
     }
 
     #talks-content {

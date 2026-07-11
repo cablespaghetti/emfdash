@@ -88,7 +88,9 @@ class MqttManager:
             self._status = "disconnected"
         self._notify_status()
 
-    def _on_disconnect(self, client, userdata, reason_code, properties):
+    def _on_disconnect(
+        self, client, userdata, disconnect_flags, reason_code, properties
+    ):
         self._status = "disconnected"
         self._notify_status()
 

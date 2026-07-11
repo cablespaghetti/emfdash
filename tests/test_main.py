@@ -250,6 +250,46 @@ class TestWeatherCsvFixture:
         assert tile._get_weather_art() == SUNNY
 
 
+WEATHER_HQ_FIXTURE = "tests/data/weather_hq.csv"
+
+
+class TestWeatherHqCsvFixture:
+    def test_csv_parses(self):
+        with open(WEATHER_HQ_FIXTURE, newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            rows = list(reader)
+        assert len(rows) > 0
+        for row in rows:
+            assert row["Timestamp"]
+            assert row["Date"]
+            import json
+
+            assert json.loads(row["Value"])
+
+    def test_hq_message_updates_data(self):
+        tile = WeatherTile(make_mqtt())
+        tile._header = Mock()
+        tile._content = Mock()
+        with open(WEATHER_HQ_FIXTURE, newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            row = next(reader)
+            tile._mqtt_on_hq_message(msg("weather/hq", row["Value"]))
+        assert tile._data["temp"] == "20.6"
+        assert tile._data["feelslike"] == "20.6"
+        assert tile._data["humidity"] == "66.0"
+        assert tile._data["windspeed"] == "3.96"
+        assert tile._data["winddir"] == "96.0"
+        assert tile._data["baromabs"] == "1010.5"
+        assert tile._data["solarradiation"] == "0.0"
+        assert tile._data["dailyrain"] == "0.0"
+        assert tile._data["rainrate"] == "0.0"
+        assert tile._data["hourlyrain"] == "0.0"
+        assert tile._data["weeklyrain"] == "0.0"
+        assert tile._data["eventrain"] == "0.0"
+        assert tile._data["uv"] == "0.0"
+        assert tile._data["windgust"] == "10.07"
+
+
 PHONES_TOPICS = {
     "phones-online": "5",
     "numbers-assigned": "1934",

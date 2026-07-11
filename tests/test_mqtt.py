@@ -23,7 +23,7 @@ class TestMqttManager:
         events = []
         m.on_status_change(events.append)
         m._on_connect(m._client, None, None, 0, None)
-        m._on_disconnect(m._client, None, 0, None)
+        m._on_disconnect(m._client, None, None, 0, None)
         assert events == ["connecting", "connected", "disconnected"]
 
     def test_dispatch_exact_topic(self):
