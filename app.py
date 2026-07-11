@@ -4,7 +4,7 @@ from textual.widgets import Header
 
 from constants import DUCK, RICK
 from mqtt import MqttManager
-from tiles import MQTTTile, WeatherTile
+from tiles import MQTTTile, ScheduleTile, WeatherTile
 
 
 class EmfDashApp(App):
@@ -15,6 +15,7 @@ class EmfDashApp(App):
 
     Horizontal {
         height: 1fr;
+        width: 1fr;
     }
 
     Vertical {
@@ -23,10 +24,9 @@ class EmfDashApp(App):
     }
 
     #astley {
-        width: 1fr;
-        height: 100%;
+        height: 1fr;
         border: round #7dcfff;
-        margin: 0 1;
+        margin: 0 1 0 1;
     }
 
     #weather {
@@ -51,9 +51,15 @@ class EmfDashApp(App):
         height: 1fr;
     }
 
-    #weather-content {
+    #weather-content, #schedule-content {
         height: 1fr;
         padding: 1 2;
+    }
+
+    #schedule {
+        height: 1fr;
+        border: round #bb9af7;
+        margin: 0 1 1 1;
     }
     """
 
@@ -65,10 +71,12 @@ class EmfDashApp(App):
     def compose(self):
         yield Header(show_clock=True)
         with Horizontal():
-            yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
+            with Vertical():
+                yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
+                yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
             with Vertical():
                 yield WeatherTile(self._mqtt, id="weather")
-                yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
+                yield ScheduleTile(id="schedule")
 
     def on_mount(self):
         self.title = "EMFDash"

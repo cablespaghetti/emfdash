@@ -1,11 +1,12 @@
 """Tests for EMF Camp Dashboard."""
 
 import csv
+import json
 from unittest.mock import Mock
 
 import pytest
 
-from tiles import MQTTTile, WeatherTile
+from tiles import MQTTTile, ScheduleTile, WeatherTile
 from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
@@ -28,11 +29,15 @@ class TestMQTTTile:
 
     def test_on_message_queues_string(self, tile):
         tile._mqtt_on_message(msg("open/astley", "hello world"))
-        assert tile._queue.get_nowait() == "hello world"
+        ts, payload = tile._queue.get_nowait()
+        assert payload == "hello world"
+        assert isinstance(ts, str) and len(ts) == 8
 
     def test_on_message_queues_bytes(self, tile):
         tile._mqtt_on_message(msg("open/astley", b"raw bytes"))
-        assert tile._queue.get_nowait() == "raw bytes"
+        ts, payload = tile._queue.get_nowait()
+        assert payload == "raw bytes"
+        assert isinstance(ts, str) and len(ts) == 8
 
     def test_on_message_full_queue_does_not_raise(self, tile):
         for i in range(200):
@@ -43,8 +48,9 @@ class TestMQTTTile:
     def test_on_message_handles_bad_utf8(self, tile):
         m = msg("open/astley", b"\xff\xfe")
         tile._mqtt_on_message(m)
-        val = tile._queue.get_nowait()
+        ts, val = tile._queue.get_nowait()
         assert isinstance(val, str)
+        assert isinstance(ts, str) and len(ts) == 8
 
     def test_poll_drains_queue(self, tile):
         tile._mqtt_on_message(msg("open/astley", "one"))
@@ -194,3 +200,64 @@ class TestWeatherCsvFixture:
                 tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
         tile._poll()
         assert tile._get_weather_art() == SUNNY
+
+
+SCHEDULE_FIXTURE = "tests/data/schedule_today.json"
+
+
+class TestScheduleTile:
+    @pytest.fixture
+    def tile(self):
+        t = ScheduleTile()
+        t._header = Mock()
+        t._content = Mock()
+        return t
+
+    def test_init_has_empty_films(self):
+        t = ScheduleTile()
+        assert t._films == []
+        assert t._day_label == ""
+
+    def test_loads_today_only(self, tile):
+        with open(SCHEDULE_FIXTURE) as f:
+            data = json.load(f)
+        tile._load_data(data, today="2026-07-16")
+        assert len(tile._films) == 2
+        assert tile._films[0]["slug"] == "apollo11"
+        assert tile._films[1]["slug"] == "spinaltap"
+        assert tile._day_label == "Today"
+
+    def test_shows_next_day_when_today_empty(self, tile):
+        with open(SCHEDULE_FIXTURE) as f:
+            data = json.load(f)
+        tile._load_data(data, today="2026-07-15")
+        assert len(tile._films) == 2
+        assert tile._films[0]["slug"] == "apollo11"
+        assert tile._day_label == "Thursday 16th"
+
+    def test_no_upcoming_films(self, tile):
+        with open(SCHEDULE_FIXTURE) as f:
+            data = json.load(f)
+        tile._load_data(data, today="2026-07-20")
+        assert tile._films == []
+        assert tile._day_label == ""
+
+    def test_redraw(self, tile):
+        with open(SCHEDULE_FIXTURE) as f:
+            data = json.load(f)
+        tile._load_data(data, today="2026-07-16")
+        from rich.table import Table
+
+        assert isinstance(tile._content.update.call_args[0][0], Table)
+
+    @pytest.mark.parametrize(
+        "ts,expected",
+        [
+            ("2026-07-16T19:00:00+01:00", "Thursday 16th"),
+            ("2026-07-17T08:00:00+01:00", "Friday 17th"),
+            ("2026-07-18T08:30:00+01:00", "Saturday 18th"),
+            ("2026-07-19T20:15:00+01:00", "Sunday 19th"),
+        ],
+    )
+    def test_format_day(self, ts, expected):
+        assert ScheduleTile._format_day(ts) == expected

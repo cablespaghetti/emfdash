@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
   "textual",
-  "paho-mqtt"
+  "paho-mqtt",
+  "httpx"
 ]
 
 [tool.pytest.ini_options]

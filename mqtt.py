@@ -51,7 +51,7 @@ class MqttManager:
                 err = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
                 if err != 0:
                     reconnect = True
-            except (OSError, AttributeError):
+            except OSError, AttributeError:
                 pass
             if not reconnect:
                 if time.monotonic() - self._last_message_time > _HEALTH_TIMEOUT:

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "films": [
+    {
+      "display": true,
+      "slug": "apollo11",
+      "title": "Apollo 11",
+      "runTime": {"minutes": 93, "text": "1h 33"},
+      "showing": {
+        "timestamp": "2026-07-16T19:00:00+01:00",
+        "text": "16th July 19:00",
+        "day": "Thursday"
+      }
+    },
+    {
+      "display": true,
+      "slug": "spinaltap",
+      "title": "This Is Spinal Tap",
+      "runTime": {"minutes": 82, "text": "1h 22"},
+      "showing": {
+        "timestamp": "2026-07-16T21:30:00+01:00",
+        "text": "16th July 21:30",
+        "day": "Thursday"
+      }
+    },
+    {
+      "display": false,
+      "slug": "hidden",
+      "title": "Hidden Film",
+      "runTime": {"minutes": 90, "text": "1h 30"},
+      "showing": {
+        "timestamp": "2026-07-16T22:00:00+01:00",
+        "text": "16th July 22:00",
+        "day": "Thursday"
+      }
+    },
+    {
+      "display": true,
+      "slug": "hackers",
+      "title": "Hackers",
+      "runTime": {"minutes": 101, "text": "1h 41"},
+      "showing": {
+        "timestamp": "2026-07-17T19:00:00+01:00",
+        "text": "17th July 19:00",
+        "day": "Friday"
+      }
+    }
+  ]
+}
