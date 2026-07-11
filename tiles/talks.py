@@ -126,9 +126,9 @@ class TalksTile(Static):
         day_part = f" — {self._day_label}" if self._day_label else ""
         self._header.update(f"[bold]Schedule[/] [dim]— {self._label}{day_part}[/]")
         self._content.clear()
-        table = Table.grid(padding=0, expand=True)
+        table = Table.grid(padding=(0, 2), expand=True)
         table.add_column(ratio=1)
-        table.add_column(width=12, justify="right")
+        table.add_column(width=15, justify="right")
 
         for venue, talks in self._stages.items():
             table.add_row(f"[bold]{venue}[/]", "")
