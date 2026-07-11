@@ -25,38 +25,42 @@ class TestMQTTTile:
     def test_init(self, tile):
         assert tile.topic == "open/astley"
         assert tile.emoji == RICK
-        assert tile._queue.maxsize == 200
+        assert tile._messages == []
+        assert tile._dirty is False
 
     def test_on_message_queues_string(self, tile):
         tile._mqtt_on_message(msg("open/astley", "hello world"))
-        ts, payload = tile._queue.get_nowait()
+        ts, payload = tile._messages[0]
         assert payload == "hello world"
         assert isinstance(ts, str) and len(ts) == 8
+        assert tile._dirty is True
 
     def test_on_message_queues_bytes(self, tile):
         tile._mqtt_on_message(msg("open/astley", b"raw bytes"))
-        ts, payload = tile._queue.get_nowait()
+        ts, payload = tile._messages[0]
         assert payload == "raw bytes"
         assert isinstance(ts, str) and len(ts) == 8
 
     def test_on_message_full_queue_does_not_raise(self, tile):
         for i in range(200):
-            tile._queue.put_nowait(str(i))
+            tile._messages.append((f"{i:02}:00:00", str(i)))
         tile._mqtt_on_message(msg("open/astley", "overflow"))
-        assert tile._queue.qsize() == 200
+        assert len(tile._messages) == 201
 
     def test_on_message_handles_bad_utf8(self, tile):
         m = msg("open/astley", b"\xff\xfe")
         tile._mqtt_on_message(m)
-        ts, val = tile._queue.get_nowait()
+        ts, val = tile._messages[0]
         assert isinstance(val, str)
         assert isinstance(ts, str) and len(ts) == 8
 
-    def test_poll_drains_queue(self, tile):
+    def test_poll_redraws(self, tile):
         tile._mqtt_on_message(msg("open/astley", "one"))
         tile._mqtt_on_message(msg("open/astley", "two"))
         tile._poll()
-        assert tile._queue.empty()
+        from rich.table import Table
+
+        assert isinstance(tile._log.update.call_args[0][0], Table)
 
 
 class TestWeatherTile:
@@ -156,9 +160,11 @@ class TestCsvFixtures:
             reader = csv.DictReader(f, delimiter=";")
             for row in reader:
                 tile._mqtt_on_message(msg(topic, row["Value"]))
-        assert tile._queue.qsize() > 0
+        assert len(tile._messages) > 0
         tile._poll()
-        assert tile._queue.empty()
+        from rich.table import Table
+
+        assert isinstance(tile._log.update.call_args[0][0], Table)
 
 
 WEATHER_FIXTURE = "tests/data/emf_weather.csv"

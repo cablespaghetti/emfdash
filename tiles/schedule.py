@@ -75,7 +75,7 @@ class ScheduleTile(Static):
             self._content.update("[dim]No upcoming films scheduled[/]")
             return
 
-        self._header.update(f"[bold]Films[/] [dim]— {self._day_label}[/]")
+        self._header.update(f"[bold]Films[/] [dim]— Stage C — {self._day_label}[/]")
         table = Table.grid(padding=(0, 2))
         table.add_column(width=4)
         table.add_column(ratio=1)

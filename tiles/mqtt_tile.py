@@ -13,14 +13,15 @@ class MQTTTile(Static):
         self.topic = topic
         self.emoji = emoji
         self._mqtt = mqtt
-        self._queue: queue.Queue = queue.Queue(maxsize=200)
+        self._messages: list[tuple[str, str]] = []
+        self._dirty = False
 
     def compose(self):
         yield Static(f"[bold]MQTT[/] [dim]— {self.topic}[/]", classes="tile-header")
-        yield RichLog(classes="tile-log", highlight=True, markup=True, wrap=True)
+        yield Static(id="log", classes="tile-log")
 
     def on_mount(self):
-        self._log = self.query_one(RichLog)
+        self._log = self.query_one("#log", Static)
         self._mqtt.subscribe(self.topic, self._mqtt_on_message)
         self.set_interval(0.1, self._poll)
 
@@ -31,22 +32,22 @@ class MQTTTile(Static):
             payload = str(msg.payload)
         ts = datetime.now().strftime("%H:%M:%S")
         try:
-            self._queue.put_nowait((ts, payload))
-        except queue.Full:
+            self._messages.append((ts, payload))
+            self._dirty = True
+        except Exception:
             pass
 
     def _poll(self):
-        try:
-            while True:
-                ts, payload = self._queue.get_nowait()
-                self._display(ts, payload)
-        except queue.Empty:
-            pass
+        if self._dirty:
+            self._dirty = False
+            self._redraw()
 
-    def _display(self, timestamp: str, payload: str):
-        table = Table.grid(expand=True)
+    def _redraw(self):
+        table = Table.grid(padding=(0, 2), expand=True)
         table.add_column(width=4)
         table.add_column(ratio=1)
-        table.add_column(width=8, justify="right")
-        table.add_row(self.emoji, payload, timestamp)
-        self._log.write(table)
+        table.add_column(width=8)
+        for ts, payload in self._messages[-200:]:
+            table.add_row(self.emoji, payload, ts)
+        self._log.update(table)
+        self._log.scroll_end(animate=False)

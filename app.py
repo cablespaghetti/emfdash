@@ -49,6 +49,9 @@ class EmfDashApp(App):
 
     .tile-log {
         height: 1fr;
+        padding: 1 2;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
 
     #weather-content, #schedule-content {
