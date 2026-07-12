@@ -2,6 +2,7 @@ from textual.app import App, Content
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
+from config import Config
 from constants import DUCK, RICK
 from mqtt import MqttManager
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
@@ -145,8 +146,9 @@ class EmfDashApp(App):
     }
     """
 
-    def __init__(self):
+    def __init__(self, config: Config | None = None):
         super().__init__()
+        self._config = config or Config.load()
         self._mqtt = MqttManager()
         self._mqtt.on_status_change(self._on_mqtt_status)
 
@@ -154,7 +156,7 @@ class EmfDashApp(App):
         yield Header(show_clock=True)
         with Horizontal():
             with Vertical(id="left-col"):
-                yield ScheduleTile(id="talks")
+                yield ScheduleTile(self._config.favourites_url, id="talks")
                 with Horizontal(id="bottom-left"):
                     yield WeatherTile(self._mqtt, id="weather")
                     yield PhoneTile(self._mqtt, id="phones")

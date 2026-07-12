@@ -455,3 +455,99 @@ class TestScheduleTile:
         tile._header.update.assert_called_once()
         header = tile._header.update.call_args[0][0]
         assert "Now & Next" in header
+
+
+FAVOURITES_FIXTURE = "tests/data/favourites.json"
+
+
+class TestScheduleFavourites:
+    @pytest.fixture
+    def tile(self):
+        t = ScheduleTile()
+        t._header = Mock()
+        t._content = Mock()
+        return t
+
+    def test_process_favourites_grouped_by_venue(self, tile):
+        with open(FAVOURITES_FIXTURE) as f:
+            data = json.load(f)
+        tile._process_favourites(data)
+        assert "Stage C" in tile._stages
+        assert tile._label == "Favourites"
+
+    def test_process_favourites_filters_to_today(self, tile):
+        with open(FAVOURITES_FIXTURE) as f:
+            data = json.load(f)
+        tile._process_favourites(data)
+        for venue, talks in tile._stages.items():
+            for talk in talks:
+                for occ in talk.get("occurrences", []):
+                    assert occ.get("start_date", "").startswith("2026-07-16")
+
+    def test_process_favourites_deduplicates(self, tile):
+        talks = [
+            {
+                "id": 1,
+                "title": "A",
+                "occurrences": [
+                    {
+                        "start_time": "10:00",
+                        "venue": "Stage A",
+                        "start_date": "2026-07-16 10:00:00",
+                    }
+                ],
+            },
+            {
+                "id": 1,
+                "title": "A dup",
+                "occurrences": [
+                    {
+                        "start_time": "10:00",
+                        "venue": "Stage A",
+                        "start_date": "2026-07-16 10:00:00",
+                    }
+                ],
+            },
+        ]
+        tile._process_favourites(talks)
+        assert len(tile._stages["Stage A"]) == 1
+
+    def test_process_favourites_redraws(self, tile):
+        with open(FAVOURITES_FIXTURE) as f:
+            data = json.load(f)
+        tile._process_favourites(data)
+        tile._header.update.assert_called_once()
+        header = tile._header.update.call_args[0][0]
+        assert "Favourites" in header
+
+
+class TestConfig:
+    def test_load_missing_returns_defaults(self, tmp_path):
+        from config import Config
+
+        cfg = Config.load(tmp_path / "nonexistent.toml")
+        assert cfg.favourites_url is None
+
+    def test_load_with_favourites_url(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.toml"
+        p.write_text('[favourites]\nurl = "https://example.com/fav.json?token=abc"\n')
+        cfg = Config.load(p)
+        assert cfg.favourites_url == "https://example.com/fav.json?token=abc"
+
+    def test_load_empty_toml(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.toml"
+        p.write_text("")
+        cfg = Config.load(p)
+        assert cfg.favourites_url is None
+
+    def test_load_no_favourites_section(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.toml"
+        p.write_text('[other]\nkey = "val"\n')
+        cfg = Config.load(p)
+        assert cfg.favourites_url is None

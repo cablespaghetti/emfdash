@@ -22,9 +22,10 @@ def _venue_sort_key(venue: str) -> tuple:
 
 
 class ScheduleTile(Static):
-    def __init__(self, **kwargs):
+    def __init__(self, favourites_url: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.can_focus = True
+        self._favourites_url = favourites_url
         self._stages: dict[str, list[dict]] = {}
         self._label = ""
         self._day_label = ""
@@ -45,18 +46,30 @@ class ScheduleTile(Static):
             self._redraw()
 
     async def _fetch_schedule(self):
+        url = self._favourites_url or NOW_AND_NEXT_URL
         try:
             async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-                r = await client.get(NOW_AND_NEXT_URL)
+                r = await client.get(url)
                 r.raise_for_status()
                 data = r.json()
         except Exception:
             self._header.update("[bold]Schedule[/] [dim]— Error[/]")
             return
 
-        self._process_now_next(data)
+        if self._favourites_url:
+            self._process_favourites(data)
+        else:
+            self._process_now_next(data)
 
-    def _process_now_next(self, data: dict) -> None:
+    def _process_favourites(self, data: list[dict]) -> None:
+        raw: dict[str, list[dict]] = {}
+        for talk in data:
+            occ = talk.get("occurrences", [{}])[0]
+            venue = occ.get("venue", "Unknown")
+            raw.setdefault(venue, []).append(talk)
+        self._process_now_next(raw, label="Favourites")
+
+    def _process_now_next(self, data: dict, label: str = "Now & Next") -> None:
         today = datetime.now().strftime("%Y-%m-%d")
 
         raw: dict[str, list[dict]] = {}
@@ -101,7 +114,7 @@ class ScheduleTile(Static):
         self._stages = dict(
             sorted(self._stages.items(), key=lambda kv: _venue_sort_key(kv[0]))
         )
-        self._label = "Now & Next"
+        self._label = label
         if target_date == today:
             self._day_label = "Today"
         else:
