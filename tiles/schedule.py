@@ -42,7 +42,7 @@ class ScheduleTile(Static):
         self._content = self.query_one("#talks-content", ListView)
         self._header.update("[bold]Schedule[/] [dim]— Loading\u2026[/]")
         self._client = httpx.AsyncClient(follow_redirects=True, timeout=10)
-        self.set_interval(120, self._fetch_schedule)
+        self.set_interval(300, self._fetch_schedule)
         await self._fetch_schedule()
 
     def on_resize(self, event: Resize) -> None:
@@ -114,6 +114,9 @@ class ScheduleTile(Static):
                         filtered.append(t)
                         break
             if filtered:
+                filtered.sort(
+                    key=lambda t: t.get("occurrences", [{}])[0].get("start_time", "")
+                )
                 self._stages[venue] = filtered
 
         if not self._stages:
