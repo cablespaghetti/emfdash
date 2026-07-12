@@ -12,37 +12,20 @@ mise run start
 
 ## Configuration
 
-Create `config.toml` in the project root:
+There is a `config.yaml` in the project root which configures the layout of the tiles and the various data sources. Tweak it to your heart's content and let us know what fun bugs you find. For example, uncomment the favourites section with your own favourites.json URL to add a tile with your personal schedule.
 
-```toml
-[favourites]
-url = "https://www.emfcamp.org/favourites.json?token=your-token"
+## Tile types
 
-[[feeds]]
-topic = "open/astley"
-emoji = "🕺"
+| Type | Description | Extra fields |
+|------|-------------|-------------|
+| `schedule` | Talks schedule — now & next (default) or favourites | `mode`, `url` |
+| `weather` | Live weather: temp, humidity, wind, rain, UV, pressure | — |
+| `phones` | Phone system stats: calls, answer rate, talk time | — |
+| `feed` | Live MQTT topic feed with emoji | `topic`, `emoji` |
+| `films` | Film schedule via HTTP API | — |
 
-[[feeds]]
-topic = "open/the-ducks"
-emoji = "🦆"
-```
-
-If `favourites.url` is set, the schedule tile switches from the default
-now & next view to your personal favourites schedule, filtered to the
-current day.
-
-MQTT feeds are configurable via `[[feeds]]` entries. Each entry specifies
-a topic and emoji. Defaults match the example above.
-
-## Data sources
-
-| Tile | Source | Description |
-|------|--------|-------------|
-| Schedule | HTTP API | Talks schedule — now & next (default) or personal favourites |
-| Weather | `weather/hq` | Live weather station data (temp, humidity, wind, rain, UV, pressure) |
-| Phones | `phones/#` | Phone system stats (calls, answer rate, talk time, voicemail) |
-| MQTT feeds | configurable | Live topic feeds with emoji (defaults: Astley, Ducks) |
-| Films | HTTP API | Film schedule |
+Weights control proportional sizing (`fr` units) — a tile with `weight: 2`
+takes twice the space of one with `weight: 1`.
 
 ## Tasks
 

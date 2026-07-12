@@ -522,63 +522,77 @@ class TestScheduleFavourites:
 
 
 class TestConfig:
-    def test_load_missing_returns_empty(self, tmp_path):
+    def test_load_missing_raises(self, tmp_path):
         from config import Config
 
-        cfg = Config.load(tmp_path / "nonexistent.toml")
-        assert cfg.favourites_url is None
-        assert cfg.feeds == []
+        with pytest.raises(ValueError, match="not found"):
+            Config.load(tmp_path / "nonexistent.yaml")
 
-    def test_load_with_favourites_url(self, tmp_path):
+    def test_empty_file_raises(self, tmp_path):
         from config import Config
 
-        p = tmp_path / "config.toml"
-        p.write_text('[favourites]\nurl = "https://example.com/fav.json?token=abc"\n')
-        cfg = Config.load(p)
-        assert cfg.favourites_url == "https://example.com/fav.json?token=abc"
-        assert cfg.feeds == []
-
-    def test_load_empty_toml(self, tmp_path):
-        from config import Config
-
-        p = tmp_path / "config.toml"
+        p = tmp_path / "config.yaml"
         p.write_text("")
-        cfg = Config.load(p)
-        assert cfg.favourites_url is None
-        assert cfg.feeds == []
+        with pytest.raises(ValueError, match="no columns defined"):
+            Config.load(p)
 
-    def test_load_no_favourites_section(self, tmp_path):
+    def test_no_columns_key_raises(self, tmp_path):
         from config import Config
 
-        p = tmp_path / "config.toml"
-        p.write_text('[other]\nkey = "val"\n')
-        cfg = Config.load(p)
-        assert cfg.favourites_url is None
-        assert cfg.feeds == []
+        p = tmp_path / "config.yaml"
+        p.write_text("other:\n  key: val\n")
+        with pytest.raises(ValueError, match="no columns defined"):
+            Config.load(p)
 
-    def test_feeds_custom(self, tmp_path):
+    def test_layout_hsplit(self, tmp_path):
         from config import Config
 
-        p = tmp_path / "config.toml"
-        p.write_text('[[feeds]]\ntopic = "open/test"\nemoji = "\U0001f600"\n')
-        cfg = Config.load(p)
-        assert len(cfg.feeds) == 1
-        assert cfg.feeds[0].topic == "open/test"
-        assert cfg.feeds[0].emoji == "\U0001f600"
-
-    def test_feeds_from_config_file(self, tmp_path):
-        from config import Config
-
-        p = tmp_path / "config.toml"
+        p = tmp_path / "config.yaml"
         p.write_text(
-            "[[feeds]]\n"
-            'topic = "open/astley"\n'
-            'emoji = "\U0001f57a"\n'
-            "[[feeds]]\n"
-            'topic = "open/the-ducks"\n'
-            'emoji = "\U0001f986"\n'
+            "columns:\n"
+            "  - weight: 1\n"
+            "    rows:\n"
+            "      - type: hsplit\n"
+            "        weight: 1\n"
+            "        tiles:\n"
+            "          - type: weather\n"
+            "            weight: 2\n"
+            "          - type: phones\n"
+            "            weight: 1\n"
         )
         cfg = Config.load(p)
-        assert len(cfg.feeds) == 2
-        assert cfg.feeds[0].topic == "open/astley"
-        assert cfg.feeds[1].topic == "open/the-ducks"
+        row = cfg.layout.columns[0].rows[0]
+        assert len(row.tiles) == 2
+        assert row.tiles[0].type == "weather"
+        assert row.tiles[0].weight == 2
+        assert row.tiles[1].type == "phones"
+        assert row.tiles[1].weight == 1
+
+    def test_schedule_mode_from_tile(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.yaml"
+        p.write_text(
+            "columns:\n  - weight: 1\n    rows:\n      - type: schedule\n        mode: favourites\n        url: https://example.com/fav.json\n"
+        )
+        cfg = Config.load(p)
+        tile = cfg.layout.columns[0].rows[0].tiles[0]
+        assert tile.mode == "favourites"
+        assert tile.url == "https://example.com/fav.json"
+
+    def test_feed_tile_has_topic_and_emoji(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.yaml"
+        p.write_text(
+            "columns:\n"
+            "  - weight: 1\n"
+            "    rows:\n"
+            "      - type: feed\n"
+            "        topic: open/test\n"
+            "        emoji: \U0001f600\n"
+        )
+        cfg = Config.load(p)
+        tile = cfg.layout.columns[0].rows[0].tiles[0]
+        assert tile.topic == "open/test"
+        assert tile.emoji == "\U0001f600"

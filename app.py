@@ -2,7 +2,7 @@ from textual.app import App, Content
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
-from config import Config
+from config import Config, TileDef
 from mqtt import MqttManager
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 
@@ -13,75 +13,8 @@ class EmfDashApp(App):
         background: #1a1b26;
     }
 
-    Horizontal {
-        height: 1fr;
-        width: 1fr;
-    }
-
     Vertical {
         height: 100%;
-    }
-
-    #left-col {
-        width: 2fr;
-    }
-
-    #right-col {
-        width: 1fr;
-    }
-
-    .feed-tile, #schedule {
-        height: 1fr;
-    }
-
-    #talks {
-        height: 2fr;
-        border: round #7aa2f7;
-        margin: 0 1 1 1;
-    }
-
-    #talks:focus {
-        border: round $accent;
-    }
-
-    #weather {
-        border: round #e0af68;
-    }
-
-    #weather:focus {
-        border: round $accent;
-    }
-
-    #phones {
-        border: round #f7768e;
-    }
-
-    #phones:focus {
-        border: round $accent;
-    }
-
-    #bottom-left {
-        height: 1fr;
-        margin: 0 1 1 1;
-    }
-
-    #bottom-left > #weather {
-        height: 100%;
-        width: 2fr;
-    }
-
-    #bottom-left > #phones {
-        height: 100%;
-        width: 1fr;
-    }
-
-    .feed-tile {
-        border: round #7dcfff;
-        margin: 0 1 1 1;
-    }
-
-    .feed-tile:focus {
-        border: round $accent;
     }
 
     .tile-header {
@@ -126,13 +59,51 @@ class EmfDashApp(App):
         background: $boost;
     }
 
-    #schedule {
+    .tile-schedule {
+        border: round #7aa2f7;
+        margin: 0 1 1 1;
+    }
+
+    .tile-schedule:focus {
+        border: round $accent;
+    }
+
+    .tile-weather {
+        border: round #e0af68;
+    }
+
+    .tile-weather:focus {
+        border: round $accent;
+    }
+
+    .tile-phones {
+        border: round #f7768e;
+    }
+
+    .tile-phones:focus {
+        border: round $accent;
+    }
+
+    .tile-feed {
+        border: round #7dcfff;
+        margin: 0 1 1 1;
+    }
+
+    .tile-feed:focus {
+        border: round $accent;
+    }
+
+    .tile-films {
         border: round #bb9af7;
         margin: 0 1 1 1;
     }
 
-    #schedule:focus {
+    .tile-films:focus {
         border: round $accent;
+    }
+
+    .hsplit {
+        margin: 0 1 1 1;
     }
     """
 
@@ -144,22 +115,36 @@ class EmfDashApp(App):
 
     def compose(self):
         yield Header(show_clock=True)
-        with Horizontal():
-            with Vertical(id="left-col"):
-                yield ScheduleTile(self._config.favourites_url, id="talks")
-                with Horizontal(id="bottom-left"):
-                    yield WeatherTile(self._mqtt, id="weather")
-                    yield PhoneTile(self._mqtt, id="phones")
-            with Vertical(id="right-col"):
-                for i, feed in enumerate(self._config.feeds):
-                    yield MQTTTile(
-                        feed.topic,
-                        feed.emoji,
-                        self._mqtt,
-                        id=f"feed-{i}",
-                        classes="feed-tile",
-                    )
-                yield FilmTile(id="schedule")
+        with Horizontal(id="main-layout"):
+            for col in self._config.layout.columns:
+                with Vertical() as cv:
+                    cv.styles.width = f"{col.weight}fr"
+                    for row in col.rows:
+                        if len(row.tiles) > 1:
+                            with Horizontal(classes="hsplit") as h:
+                                h.styles.height = f"{row.weight}fr"
+                                for tile in row.tiles:
+                                    w = self._make_tile(tile)
+                                    w.styles.width = f"{tile.weight}fr"
+                                    yield w
+                        else:
+                            w = self._make_tile(row.tiles[0])
+                            w.styles.height = f"{row.weight}fr"
+                            yield w
+
+    def _make_tile(self, tile: TileDef):
+        classes = f"tile-{tile.type}"
+        if tile.type == "schedule":
+            return ScheduleTile(tile.mode or "nowandnext", tile.url, classes=classes)
+        if tile.type == "weather":
+            return WeatherTile(self._mqtt, classes=classes)
+        if tile.type == "phones":
+            return PhoneTile(self._mqtt, classes=classes)
+        if tile.type == "feed":
+            return MQTTTile(tile.topic, tile.emoji, self._mqtt, classes=classes)
+        if tile.type == "films":
+            return FilmTile(classes=classes)
+        raise ValueError(f"Unknown tile type: {tile.type}")
 
     def on_mount(self):
         self.title = "EMFDash"

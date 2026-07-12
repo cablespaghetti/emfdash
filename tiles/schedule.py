@@ -24,10 +24,11 @@ def _venue_sort_key(venue: str) -> tuple:
 
 
 class ScheduleTile(Static):
-    def __init__(self, favourites_url: str | None = None, **kwargs):
+    def __init__(self, mode: str = "nowandnext", url: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.can_focus = True
-        self._favourites_url = favourites_url
+        self._is_favourites = mode == "favourites"
+        self._url = url if self._is_favourites else NOW_AND_NEXT_URL
         self._stages: dict[str, list[dict]] = {}
         self._label = ""
         self._day_label = ""
@@ -49,7 +50,7 @@ class ScheduleTile(Static):
             self._redraw()
 
     async def _fetch_schedule(self):
-        url = self._favourites_url or NOW_AND_NEXT_URL
+        url = self._url
         for attempt in range(3):
             try:
                 r = await self._client.get(url)
@@ -63,7 +64,7 @@ class ScheduleTile(Static):
                 self._header.update("[bold]Schedule[/] [dim]— Offline[/]")
                 return
 
-        if self._favourites_url:
+        if self._is_favourites:
             self._process_favourites(data)
         else:
             self._process_now_next(data)

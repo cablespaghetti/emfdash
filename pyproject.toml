@@ -7,7 +7,8 @@ requires-python = ">=3.14"
 dependencies = [
   "textual",
   "paho-mqtt",
-  "httpx"
+  "httpx",
+  "pyyaml",
 ]
 
 [tool.pytest.ini_options]

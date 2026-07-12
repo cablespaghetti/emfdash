@@ -1,0 +1,29 @@
+columns:
+  - weight: 2
+    rows:
+      #- type: schedule
+      #  mode: favourites
+      #  url: "https://www.emfcamp.org/favourites.json?token=your-token-here"
+      #  weight: 1
+      - type: schedule
+        mode: nowandnext
+        weight: 2
+      - type: hsplit
+        weight: 1
+        tiles:
+          - type: weather
+            weight: 2
+          - type: phones
+            weight: 1
+  - weight: 1
+    rows:
+      - type: feed
+        topic: "open/astley"
+        emoji: "🕺"
+        weight: 1
+      - type: feed
+        topic: "open/the-ducks"
+        emoji: "🦆"
+        weight: 1
+      - type: films
+        weight: 1
