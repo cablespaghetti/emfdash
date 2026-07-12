@@ -61,78 +61,6 @@ class TestMQTTTile:
         assert tile._log.add_message.call_count == 2
 
 
-class TestWeatherTile:
-    @pytest.fixture
-    def tile(self):
-        t = WeatherTile(make_mqtt())
-        t._header = Mock()
-        t._content = Mock()
-        return t
-
-    def test_init(self, tile):
-        assert tile._data == {}
-        assert tile._last_update is None
-
-    def test_on_message_queues_tuple(self, tile):
-        tile._mqtt_on_message(msg("emf/weather/temp", "22.5"))
-        key, val = tile._queue.get_nowait()
-        assert key == "temp"
-        assert val == "22.5"
-
-    def test_on_message_deep_topic(self, tile):
-        tile._mqtt_on_message(msg("emf/weather/winddir", "180"))
-        key, val = tile._queue.get_nowait()
-        assert key == "winddir"
-
-    def test_poll_updates_data(self, tile):
-        tile._mqtt_on_message(msg("emf/weather/temp", "22.5"))
-        tile._mqtt_on_message(msg("emf/weather/humidity", "60"))
-        tile._poll()
-        assert tile._data == {"temp": "22.5", "humidity": "60"}
-        assert tile._last_update is not None
-
-    @pytest.mark.parametrize(
-        "deg,arrow",
-        [
-            (0, "↑"),
-            (45, "↗"),
-            (90, "→"),
-            (135, "↘"),
-            (180, "↓"),
-            (225, "↙"),
-            (270, "←"),
-            (315, "↖"),
-            (360, "↑"),
-            (22, "↑"),
-            (23, "↗"),
-            (None, ""),
-            ("abc", "?"),
-        ],
-    )
-    def test_wind_arrow(self, tile, deg, arrow):
-        assert tile._wind_arrow(deg) == arrow
-
-    @pytest.mark.parametrize(
-        "data,expected",
-        [
-            ({"rainrate": "2.0"}, RAINY),
-            ({"rainrate": "0", "solarradiation": "60000"}, SUNNY),
-            ({"rainrate": "0", "solarradiation": "20000"}, PARTLY),
-            ({"rainrate": "0", "solarradiation": "5000", "windspeed": "30"}, WINDY),
-            ({"rainrate": "0", "solarradiation": "5000", "windspeed": "5"}, CLOUDY),
-            ({}, CLOUDY),
-        ],
-    )
-    def test_get_weather_art(self, tile, data, expected):
-        tile._data = data
-        result = tile._get_weather_art()
-        assert result == expected
-
-    def test_bad_values_fall_back_safely(self, tile):
-        tile._data = {"rainrate": "bad", "solarradiation": "bad", "windspeed": "bad"}
-        assert tile._get_weather_art() == CLOUDY
-
-
 CSV_FIXTURES = [
     ("open/astley", "tests/data/open_astley.csv", RICK),
     ("open/the-ducks", "tests/data/open_the-ducks.csv", DUCK),
@@ -205,49 +133,6 @@ class TestPhoneCsvFixtures:
         assert tile._queue.qsize() > 0
         tile._poll()
         assert tile._data[key] == rows[-1]["Value"]
-
-
-WEATHER_FIXTURE = "tests/data/emf_weather.csv"
-
-
-class TestWeatherCsvFixture:
-    def test_csv_parses(self):
-        with open(WEATHER_FIXTURE, newline="") as f:
-            reader = csv.DictReader(f, delimiter=";")
-            rows = list(reader)
-        assert len(rows) > 0
-        for row in rows:
-            assert row["Timestamp"]
-            assert row["Date"]
-            assert row["Topic"].startswith("emf/weather/")
-            assert row["Value"]
-
-    def test_messages_populate_data(self):
-        tile = WeatherTile(make_mqtt())
-        tile._header = Mock()
-        tile._content = Mock()
-        with open(WEATHER_FIXTURE, newline="") as f:
-            reader = csv.DictReader(f, delimiter=";")
-            for row in reader:
-                tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
-        assert tile._queue.qsize() > 0
-        tile._poll()
-        assert tile._data["temp"] == "23.2"
-        assert tile._data["humidity"] == "40"
-        assert tile._data["windspeed"] == "7"
-        assert tile._data["rainrate"] == "0.0"
-        assert tile._data["solarradiation"] == "60000"
-
-    def test_last_timestamp_sets_correct_art(self):
-        tile = WeatherTile(make_mqtt())
-        tile._header = Mock()
-        tile._content = Mock()
-        with open(WEATHER_FIXTURE, newline="") as f:
-            reader = csv.DictReader(f, delimiter=";")
-            for row in reader:
-                tile._mqtt_on_message(msg(row["Topic"], row["Value"]))
-        tile._poll()
-        assert tile._get_weather_art() == SUNNY
 
 
 WEATHER_HQ_FIXTURE = "tests/data/weather_hq.csv"
@@ -346,6 +231,56 @@ class TestPhoneTile:
         tile._redraw()
         output = tile._content.update.call_args[0][0]
         assert "---" in output
+
+
+class TestWeatherTile:
+    @pytest.fixture
+    def tile(self):
+        t = WeatherTile(make_mqtt())
+        t._header = Mock()
+        t._content = Mock()
+        return t
+
+    @pytest.mark.parametrize(
+        "deg,arrow",
+        [
+            (0, "↑"),
+            (45, "↗"),
+            (90, "→"),
+            (135, "↘"),
+            (180, "↓"),
+            (225, "↙"),
+            (270, "←"),
+            (315, "↖"),
+            (360, "↑"),
+            (22, "↑"),
+            (23, "↗"),
+            (None, ""),
+            ("abc", "?"),
+        ],
+    )
+    def test_wind_arrow(self, tile, deg, arrow):
+        assert tile._wind_arrow(deg) == arrow
+
+    @pytest.mark.parametrize(
+        "data,expected",
+        [
+            ({"rainrate": "2.0"}, RAINY),
+            ({"rainrate": "0", "solarradiation": "60000"}, SUNNY),
+            ({"rainrate": "0", "solarradiation": "20000"}, PARTLY),
+            ({"rainrate": "0", "solarradiation": "5000", "windspeed": "30"}, WINDY),
+            ({"rainrate": "0", "solarradiation": "5000", "windspeed": "5"}, CLOUDY),
+            ({}, CLOUDY),
+        ],
+    )
+    def test_get_weather_art(self, tile, data, expected):
+        tile._data = data
+        result = tile._get_weather_art()
+        assert result == expected
+
+    def test_bad_values_fall_back_safely(self, tile):
+        tile._data = {"rainrate": "bad", "solarradiation": "bad", "windspeed": "bad"}
+        assert tile._get_weather_art() == CLOUDY
 
 
 SCHEDULE_FIXTURE = "tests/data/schedule_today.json"

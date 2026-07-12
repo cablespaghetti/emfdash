@@ -1,5 +1,4 @@
 import json
-import queue
 from datetime import datetime
 
 from rich.table import Table
@@ -16,7 +15,6 @@ class WeatherTile(Static):
         self._mqtt = mqtt
         self._data: dict[str, str] = {}
         self._last_update: datetime | None = None
-        self._queue: queue.Queue = queue.Queue(maxsize=200)
 
     def compose(self):
         yield Static("[bold]Weather[/] [dim]— from MQTT[/]", classes="tile-header")
@@ -26,20 +24,7 @@ class WeatherTile(Static):
         self._header = self.query_one(".tile-header", Static)
         self._content = self.query_one("#weather-content", Static)
         self._redraw()
-        self._mqtt.subscribe("emf/weather/#", self._mqtt_on_message)
         self._mqtt.subscribe("weather/hq", self._mqtt_on_hq_message)
-        self.set_interval(0.1, self._poll)
-
-    def _mqtt_on_message(self, msg):
-        key = msg.topic.split("/")[-1]
-        try:
-            payload = msg.payload.decode("utf-8")
-        except UnicodeDecodeError:
-            payload = str(msg.payload)
-        try:
-            self._queue.put_nowait((key, payload))
-        except queue.Full:
-            pass
 
     def _mqtt_on_hq_message(self, msg):
         try:
@@ -72,19 +57,6 @@ class WeatherTile(Static):
                 self._data[target] = str(val)
         self._last_update = datetime.now()
         self._redraw()
-
-    def _poll(self):
-        updated = False
-        try:
-            while True:
-                key, value = self._queue.get_nowait()
-                self._data[key] = value
-                updated = True
-        except queue.Empty:
-            pass
-        if updated:
-            self._last_update = datetime.now()
-            self._redraw()
 
     def _wind_arrow(self, degrees) -> str:
         if degrees is None:
