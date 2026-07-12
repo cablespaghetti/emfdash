@@ -1,9 +1,6 @@
 HOST = "mqtt.emf.camp"
 PORT = 1883
 
-RICK = "🕺"
-DUCK = "🦆"
-
 SUNNY = """\
      .
       \\ | /

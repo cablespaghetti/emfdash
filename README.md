@@ -17,11 +17,22 @@ Create `config.toml` in the project root:
 ```toml
 [favourites]
 url = "https://www.emfcamp.org/favourites.json?token=your-token"
+
+[[feeds]]
+topic = "open/astley"
+emoji = "🕺"
+
+[[feeds]]
+topic = "open/the-ducks"
+emoji = "🦆"
 ```
 
 If `favourites.url` is set, the schedule tile switches from the default
 now & next view to your personal favourites schedule, filtered to the
 current day.
+
+MQTT feeds are configurable via `[[feeds]]` entries. Each entry specifies
+a topic and emoji. Defaults match the example above.
 
 ## Data sources
 
@@ -30,8 +41,7 @@ current day.
 | Schedule | HTTP API | Talks schedule — now & next (default) or personal favourites |
 | Weather | `weather/hq` | Live weather station data (temp, humidity, wind, rain, UV, pressure) |
 | Phones | `phones/#` | Phone system stats (calls, answer rate, talk time, voicemail) |
-| Astley | `open/astley` | Rick Astley themed MQTT nonsense |
-| Ducks | `open/the-ducks` | Duck-themed MQTT nonsense |
+| MQTT feeds | configurable | Live topic feeds with emoji (defaults: Astley, Ducks) |
 | Films | HTTP API | Film schedule |
 
 ## Tasks

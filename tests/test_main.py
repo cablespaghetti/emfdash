@@ -8,7 +8,7 @@ import pytest
 
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 from tiles.common import format_day
-from constants import RICK, DUCK, SUNNY, RAINY, PARTLY, WINDY, CLOUDY
+from constants import SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
 
@@ -19,13 +19,13 @@ def make_mqtt():
 class TestMQTTTile:
     @pytest.fixture
     def tile(self):
-        t = MQTTTile("open/astley", RICK, make_mqtt())
+        t = MQTTTile("open/astley", "\U0001f57a", make_mqtt())
         t._log = Mock()
         return t
 
     def test_init(self, tile):
         assert tile.topic == "open/astley"
-        assert tile.emoji == RICK
+        assert tile.emoji == "\U0001f57a"
         assert tile._queue.maxsize == 200
 
     def test_on_message_queues_string(self, tile):
@@ -62,8 +62,8 @@ class TestMQTTTile:
 
 
 CSV_FIXTURES = [
-    ("open/astley", "tests/data/open_astley.csv", RICK),
-    ("open/the-ducks", "tests/data/open_the-ducks.csv", DUCK),
+    ("open/astley", "tests/data/open_astley.csv", "\U0001f57a"),
+    ("open/the-ducks", "tests/data/open_the-ducks.csv", "\U0001f986"),
 ]
 
 
@@ -522,11 +522,12 @@ class TestScheduleFavourites:
 
 
 class TestConfig:
-    def test_load_missing_returns_defaults(self, tmp_path):
+    def test_load_missing_returns_empty(self, tmp_path):
         from config import Config
 
         cfg = Config.load(tmp_path / "nonexistent.toml")
         assert cfg.favourites_url is None
+        assert cfg.feeds == []
 
     def test_load_with_favourites_url(self, tmp_path):
         from config import Config
@@ -535,6 +536,7 @@ class TestConfig:
         p.write_text('[favourites]\nurl = "https://example.com/fav.json?token=abc"\n')
         cfg = Config.load(p)
         assert cfg.favourites_url == "https://example.com/fav.json?token=abc"
+        assert cfg.feeds == []
 
     def test_load_empty_toml(self, tmp_path):
         from config import Config
@@ -543,6 +545,7 @@ class TestConfig:
         p.write_text("")
         cfg = Config.load(p)
         assert cfg.favourites_url is None
+        assert cfg.feeds == []
 
     def test_load_no_favourites_section(self, tmp_path):
         from config import Config
@@ -551,3 +554,31 @@ class TestConfig:
         p.write_text('[other]\nkey = "val"\n')
         cfg = Config.load(p)
         assert cfg.favourites_url is None
+        assert cfg.feeds == []
+
+    def test_feeds_custom(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.toml"
+        p.write_text('[[feeds]]\ntopic = "open/test"\nemoji = "\U0001f600"\n')
+        cfg = Config.load(p)
+        assert len(cfg.feeds) == 1
+        assert cfg.feeds[0].topic == "open/test"
+        assert cfg.feeds[0].emoji == "\U0001f600"
+
+    def test_feeds_from_config_file(self, tmp_path):
+        from config import Config
+
+        p = tmp_path / "config.toml"
+        p.write_text(
+            "[[feeds]]\n"
+            'topic = "open/astley"\n'
+            'emoji = "\U0001f57a"\n'
+            "[[feeds]]\n"
+            'topic = "open/the-ducks"\n'
+            'emoji = "\U0001f986"\n'
+        )
+        cfg = Config.load(p)
+        assert len(cfg.feeds) == 2
+        assert cfg.feeds[0].topic == "open/astley"
+        assert cfg.feeds[1].topic == "open/the-ducks"

@@ -3,7 +3,6 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
 from config import Config
-from constants import DUCK, RICK
 from mqtt import MqttManager
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 
@@ -31,7 +30,7 @@ class EmfDashApp(App):
         width: 1fr;
     }
 
-    #astley, #ducks, #schedule {
+    .feed-tile, #schedule {
         height: 1fr;
     }
 
@@ -76,21 +75,12 @@ class EmfDashApp(App):
         width: 1fr;
     }
 
-    #astley {
+    .feed-tile {
         border: round #7dcfff;
         margin: 0 1 1 1;
     }
 
-    #astley:focus {
-        border: round $accent;
-    }
-
-    #ducks {
-        border: round #9ece6a;
-        margin: 0 1 1 1;
-    }
-
-    #ducks:focus {
+    .feed-tile:focus {
         border: round $accent;
     }
 
@@ -161,8 +151,14 @@ class EmfDashApp(App):
                     yield WeatherTile(self._mqtt, id="weather")
                     yield PhoneTile(self._mqtt, id="phones")
             with Vertical(id="right-col"):
-                yield MQTTTile("open/astley", RICK, self._mqtt, id="astley")
-                yield MQTTTile("open/the-ducks", DUCK, self._mqtt, id="ducks")
+                for i, feed in enumerate(self._config.feeds):
+                    yield MQTTTile(
+                        feed.topic,
+                        feed.emoji,
+                        self._mqtt,
+                        id=f"feed-{i}",
+                        classes="feed-tile",
+                    )
                 yield FilmTile(id="schedule")
 
     def on_mount(self):

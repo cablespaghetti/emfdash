@@ -1,2 +1,10 @@
-#[favourites]
-#url = "https://www.emfcamp.org/favourites.json?token=yourtokenhere"
+[[feeds]]
+topic = "open/astley"
+emoji = "🕺"
+
+[[feeds]]
+topic = "open/the-ducks"
+emoji = "🦆"
+
+# [favourites]
+# url = "https://www.emfcamp.org/favourites.json?token=your-token-here"

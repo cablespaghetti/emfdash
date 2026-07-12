@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 from datetime import datetime
 
@@ -38,6 +40,7 @@ class ScheduleTile(Static):
         self._header = self.query_one("#talks-header", Static)
         self._content = self.query_one("#talks-content", ListView)
         self._header.update("[bold]Schedule[/] [dim]— Loading\u2026[/]")
+        self._client = httpx.AsyncClient(follow_redirects=True, timeout=10)
         self.set_interval(120, self._fetch_schedule)
         await self._fetch_schedule()
 
@@ -47,14 +50,18 @@ class ScheduleTile(Static):
 
     async def _fetch_schedule(self):
         url = self._favourites_url or NOW_AND_NEXT_URL
-        try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-                r = await client.get(url)
+        for attempt in range(3):
+            try:
+                r = await self._client.get(url)
                 r.raise_for_status()
                 data = r.json()
-        except Exception:
-            self._header.update("[bold]Schedule[/] [dim]— Error[/]")
-            return
+                break
+            except Exception:
+                if attempt < 2:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                self._header.update("[bold]Schedule[/] [dim]— Offline[/]")
+                return
 
         if self._favourites_url:
             self._process_favourites(data)
