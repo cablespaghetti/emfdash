@@ -2,10 +2,13 @@
 
 ![Screenshot](screenshot.png)
 
-A TUI dashboard for EMF Camp, displaying live MQTT feeds in a split-panel terminal interface.
+An ncurses-style TUI dashboard for EMF Camp. Currently supporting schedule, personal favourites, films, weather, phones and arbitrary MQTT feed data.
 
 ## Usage
 
+[You'll need mise installed](https://mise.jdx.dev/installing-mise.html), which will then setup python with all the dependencies for you.
+
+Just run:
 ```
 mise run start
 ```
