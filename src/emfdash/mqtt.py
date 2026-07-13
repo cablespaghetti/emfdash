@@ -2,7 +2,7 @@
 
 import paho.mqtt.client as mqtt
 
-from constants import HOST, PORT
+from .constants import HOST, PORT
 
 
 class MqttManager:

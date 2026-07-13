@@ -6,7 +6,7 @@ from rich.text import Text
 from textual.events import Resize
 from textual.widgets import RichLog, Static
 
-from mqtt import MqttManager
+from ..mqtt import MqttManager
 
 
 class MQTTLog(RichLog):

@@ -6,9 +6,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
-from tiles.common import format_day
-from constants import SUNNY, RAINY, PARTLY, WINDY, CLOUDY
+from emfdash.tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
+from emfdash.tiles.common import format_day
+from emfdash.constants import SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
 
@@ -523,13 +523,13 @@ class TestScheduleFavourites:
 
 class TestConfig:
     def test_load_missing_raises(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         with pytest.raises(ValueError, match="not found"):
             Config.load(tmp_path / "nonexistent.yaml")
 
     def test_empty_file_raises(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         p = tmp_path / "config.yaml"
         p.write_text("")
@@ -537,7 +537,7 @@ class TestConfig:
             Config.load(p)
 
     def test_no_columns_key_raises(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         p = tmp_path / "config.yaml"
         p.write_text("other:\n  key: val\n")
@@ -545,7 +545,7 @@ class TestConfig:
             Config.load(p)
 
     def test_layout_hsplit(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         p = tmp_path / "config.yaml"
         p.write_text(
@@ -569,7 +569,7 @@ class TestConfig:
         assert row.tiles[1].weight == 1
 
     def test_schedule_mode_from_tile(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         p = tmp_path / "config.yaml"
         p.write_text(
@@ -581,7 +581,7 @@ class TestConfig:
         assert tile.url == "https://example.com/fav.json"
 
     def test_feed_tile_has_topic_and_emoji(self, tmp_path):
-        from config import Config
+        from emfdash.config import Config
 
         p = tmp_path / "config.yaml"
         p.write_text(

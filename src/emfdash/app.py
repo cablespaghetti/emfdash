@@ -2,9 +2,9 @@ from textual.app import App, Content
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Header
 
-from config import Config, TileDef
-from mqtt import MqttManager
-from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
+from .config import Config, TileDef
+from .mqtt import MqttManager
+from .tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 
 
 class EmfDashApp(App):
