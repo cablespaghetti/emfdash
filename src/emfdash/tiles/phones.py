@@ -3,7 +3,7 @@ from datetime import datetime
 
 from textual.widgets import Static
 
-from mqtt import MqttManager
+from ..mqtt import MqttManager
 
 
 def _format_duration(seconds: int) -> str:

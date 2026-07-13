@@ -4,7 +4,7 @@ from datetime import datetime
 from rich.table import Table
 from textual.widgets import Static
 
-from tiles.common import format_day
+from .common import format_day
 
 SCHEDULE_URL = "https://films.emfcamp.org/schedule.json"
 

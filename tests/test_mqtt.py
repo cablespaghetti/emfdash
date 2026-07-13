@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from mqtt import MqttManager
+from emfdash.mqtt import MqttManager
 from tests.conftest import msg
 
 

@@ -7,7 +7,7 @@ from rich.table import Table
 from textual.events import Resize
 from textual.widgets import ListItem, ListView, Static
 
-from tiles.common import format_day
+from .common import format_day
 
 NOW_AND_NEXT_URL = "https://www.emfcamp.org/schedule/now-and-next.json"
 
@@ -194,6 +194,6 @@ class ScheduleTile(Static):
         talk = getattr(item, "talk_data", None)
         venue = getattr(item, "venue", None)
         if talk is not None:
-            from tiles.talk_detail import TalkDetailScreen
+            from .talk_detail import TalkDetailScreen
 
             self.app.push_screen(TalkDetailScreen(talk, venue))

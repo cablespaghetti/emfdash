@@ -4,8 +4,8 @@ from datetime import datetime
 from rich.table import Table
 from textual.widgets import Static
 
-from constants import CLOUDY, PARTLY, RAINY, SUNNY, WINDY
-from mqtt import MqttManager
+from ..constants import CLOUDY, PARTLY, RAINY, SUNNY, WINDY
+from ..mqtt import MqttManager
 
 
 class WeatherTile(Static):
