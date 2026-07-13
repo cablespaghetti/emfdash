@@ -52,7 +52,7 @@ class EmfDashApp(App):
     }
 
     #talks-content > ListItem.venue-header {
-        padding: 1 1 0 1;
+        padding: 1 1 0 0;
     }
 
     #talks-content > ListItem.venue-header:focus {
