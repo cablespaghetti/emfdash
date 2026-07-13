@@ -104,14 +104,14 @@ class PhoneTile(Static):
         )
 
         lines = [
-            f"  Online      {online_val}  [dim]of[/] {assigned_val}",
-            f"  Calls 24h   {calls_val}",
-            f"  Answer rate {answer_val}",
-            f"  Answered    {answered_val}",
-            f"  Avg call    {avg_val}",
-            f"  Longest     {longest_val}",
-            f"  Total talk  {talk_val}",
-            f"  Voicemail   {voicemail_val}",
+            f"Online      {online_val}  [dim]of[/] {assigned_val}",
+            f"Calls 24h   {calls_val}",
+            f"Answer rate {answer_val}",
+            f"Answered    {answered_val}",
+            f"Avg call    {avg_val}",
+            f"Longest     {longest_val}",
+            f"Total talk  {talk_val}",
+            f"Voicemail   {voicemail_val}",
         ]
 
         self._content.update("\n".join(lines))
