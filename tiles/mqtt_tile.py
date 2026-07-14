@@ -1,3 +1,4 @@
+import json
 import queue
 from datetime import datetime
 
@@ -7,6 +8,14 @@ from textual.events import Resize
 from textual.widgets import RichLog, Static
 
 from mqtt import MqttManager
+
+
+def _try_pretty_json(raw: str) -> str:
+    try:
+        obj = json.loads(raw)
+        return json.dumps(obj, indent=2, ensure_ascii=False)
+    except (json.JSONDecodeError, ValueError):
+        return raw
 
 
 class MQTTLog(RichLog):
@@ -33,14 +42,15 @@ class MQTTLog(RichLog):
         self._line_cache.clear()
         self._widest_line_width = 0
         self._start_line = 0
-        for ts, payload in self._messages:
+        for ts, payload in reversed(self._messages):
             table = Table.grid(padding=0, expand=True)
             table.add_column(width=3)  # emoji + trailing space
             table.add_column(ratio=1)  # payload
-            table.add_column(width=9, justify="right")  # leading space + timestamp
-            table.add_row(self._emoji, payload, Text(ts, style="dim"))
+            table.add_column(width=9)  # timestamp
+            table.add_column(width=1)  # keep text clear of scrollbar
+            table.add_row(self._emoji, payload, Text(f" {ts}", style="dim"))
             self.write(table, expand=True, shrink=True, scroll_end=False)
-        self.scroll_end(animate=False, immediate=True)
+        self.scroll_home(animate=False)
 
 
 class MQTTTile(Static):
@@ -62,9 +72,10 @@ class MQTTTile(Static):
 
     def _mqtt_on_message(self, msg):
         try:
-            payload = msg.payload.decode("utf-8")
+            raw = msg.payload.decode("utf-8")
         except UnicodeDecodeError:
-            payload = str(msg.payload)
+            raw = str(msg.payload)
+        payload = _try_pretty_json(raw)
         ts = datetime.now().strftime("%H:%M:%S")
         try:
             self._queue.put_nowait((ts, payload))

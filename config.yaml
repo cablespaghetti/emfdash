@@ -23,6 +23,10 @@ columns:
         topic: "open/the-ducks"
         emoji: "🦆"
         weight: 1
+      - type: feed
+        topic: "open/hackers"
+        emoji: "💾"
+        weight: 1
       - type: fediverse
         accounts:
           - emf
