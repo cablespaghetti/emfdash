@@ -24,7 +24,7 @@ def _fmt(n: str | None) -> tuple[str, bool]:
     try:
         v = int(float(n))
         return f"[bold]{v:,}[/]", True
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return f"[bold]{n}[/]", True
 
 
@@ -81,7 +81,7 @@ class PhoneTile(Static):
             try:
                 pct = float(answer_rate) * 100
                 answer_val = f"[bold]{pct:.0f}%[/]"
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 answer_val = "[dim]---[/]"
         else:
             answer_val = "[dim]---[/]"

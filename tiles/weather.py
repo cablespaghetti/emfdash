@@ -63,7 +63,7 @@ class WeatherTile(Static):
             return ""
         try:
             d = float(degrees) % 360
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return "?"
         dirs = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"]
         return dirs[round(d / 45) % 8]
