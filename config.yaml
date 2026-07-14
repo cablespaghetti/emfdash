@@ -8,6 +8,8 @@ columns:
       - type: schedule
         mode: nowandnext
         weight: 2
+      - type: films
+        weight: 1
       - type: hsplit
         weight: 1
         tiles:
@@ -25,5 +27,17 @@ columns:
         topic: "open/the-ducks"
         emoji: "🦆"
         weight: 1
-      - type: films
+      - type: fediverse
+        accounts:
+          - emf
+          - info
+          #- badge
+          #- bus
+          #- films
+          #- kitchen
+          #- noc
+          #- phones
+          #- robotarms
+          #- video
+          #- content
         weight: 1

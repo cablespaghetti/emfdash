@@ -8,6 +8,7 @@ import pytest
 
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
 from tiles.common import format_day
+from tiles.fediverse import FediverseTile
 from constants import SUNNY, RAINY, PARTLY, WINDY, CLOUDY
 from tests.conftest import msg
 
@@ -596,3 +597,116 @@ class TestConfig:
         tile = cfg.layout.columns[0].rows[0].tiles[0]
         assert tile.topic == "open/test"
         assert tile.emoji == "\U0001f600"
+
+
+BADGE_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>@badge</title>
+    <item>
+      <title>Badge update 1</title>
+      <link>https://social.emfcamp.org/@badge/1</link>
+      <published>2026-07-16T10:00:00+01:00</published>
+      <author>@badge</author>
+    </item>
+    <item>
+      <title>Badge update 2</title>
+      <link>https://social.emfcamp.org/@badge/2</link>
+      <published>2026-07-16T09:00:00+01:00</published>
+      <author>@badge</author>
+    </item>
+  </channel>
+</rss>
+"""
+
+NOC_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>@noc</title>
+    <item>
+      <title>NOC notice</title>
+      <link>https://social.emfcamp.org/@noc/1</link>
+      <published>2026-07-16T11:00:00+01:00</published>
+      <author>@noc</author>
+    </item>
+  </channel>
+</rss>
+"""
+
+
+class TestFediverseTile:
+    def test_init(self):
+        t = FediverseTile(["badge", "noc"])
+        assert t._accounts == ["badge", "noc"]
+        assert t._entries == []
+        assert t._error is None
+
+    def test_redraw_with_entries(self):
+        t = FediverseTile(["badge"])
+        t._header = Mock()
+        t._content = Mock()
+        t._entries = [
+            {
+                "published": "2026-07-16T10:00:00+01:00",
+                "account": "badge",
+                "title": "Hello",
+            },
+        ]
+        t._redraw()
+        t._header.update.assert_called_once_with("[bold]EMFCamp Fediverse[/]")
+        t._content.clear.assert_called_once()
+        t._content.append.assert_called_once()
+
+    def test_redraw_without_entries(self):
+        t = FediverseTile(["badge"])
+        t._header = Mock()
+        t._content = Mock()
+        t._entries = []
+        t._redraw()
+        t._header.update.assert_called_once_with(
+            "[bold]EMFCamp Fediverse[/] [dim]— No posts[/]"
+        )
+        t._content.clear.assert_called_once()
+
+    async def test_fetch_merges_accounts_sorted(self):
+        from unittest.mock import AsyncMock, patch
+
+        t = FediverseTile(["badge", "noc"])
+        t._header = Mock()
+        t._content = Mock()
+
+        async def get_side_effect(url):
+            resp = Mock()
+            resp.raise_for_status = Mock()
+            if "badge" in url:
+                resp.text = BADGE_RSS
+            else:
+                resp.text = NOC_RSS
+            return resp
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            instance = AsyncMock()
+            instance.get.side_effect = get_side_effect
+            mock_cls.return_value.__aenter__.return_value = instance
+            await t._fetch()
+
+        assert len(t._entries) == 3
+        assert [e["account"] for e in t._entries] == ["noc", "badge", "badge"]
+        assert t._entries[0]["title"] == "NOC notice"
+        assert t._entries[1]["title"] == "Badge update 1"
+        assert t._entries[2]["title"] == "Badge update 2"
+
+    async def test_fetch_skips_offline_account(self):
+        from unittest.mock import AsyncMock, patch
+
+        t = FediverseTile(["broken"])
+        t._header = Mock()
+        t._content = Mock()
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            instance = AsyncMock()
+            instance.get.side_effect = Exception("connection failed")
+            mock_cls.return_value.__aenter__.return_value = instance
+            await t._fetch()
+
+        assert t._entries == []

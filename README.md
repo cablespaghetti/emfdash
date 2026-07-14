@@ -26,6 +26,7 @@ There is a `config.yaml` in the project root which configures the layout of the 
 | `phones` | Phone system stats: calls, answer rate, talk time | — |
 | `feed` | Live MQTT topic feed with emoji | `topic`, `emoji` |
 | `films` | Film schedule via HTTP API | — |
+| `fediverse` | RSS feed from GoToSocial accounts on social.emfcamp.org | `accounts` list |
 
 Weights control proportional sizing (`fr` units) — a tile with `weight: 2`
 takes twice the space of one with `weight: 1`.

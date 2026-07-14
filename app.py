@@ -5,6 +5,7 @@ from textual.widgets import Header
 from config import Config, TileDef
 from mqtt import MqttManager
 from tiles import FilmTile, MQTTTile, PhoneTile, ScheduleTile, WeatherTile
+from tiles.fediverse import FediverseTile
 
 
 class EmfDashApp(App):
@@ -102,6 +103,23 @@ class EmfDashApp(App):
         border: round $accent;
     }
 
+    .tile-fediverse {
+        border: round #41b0f0;
+        margin: 0 1 1 1;
+    }
+
+    .tile-fediverse:focus {
+        border: round $accent;
+    }
+
+    #fediverse-content > ListItem {
+        padding: 0;
+    }
+
+    #fediverse-content > ListItem:focus {
+        background: $accent 30%;
+    }
+
     .hsplit {
         margin: 0 1 1 1;
     }
@@ -144,6 +162,8 @@ class EmfDashApp(App):
             return MQTTTile(tile.topic, tile.emoji, self._mqtt, classes=classes)
         if tile.type == "films":
             return FilmTile(classes=classes)
+        if tile.type == "fediverse":
+            return FediverseTile(tile.accounts or [], classes=classes)
         raise ValueError(f"Unknown tile type: {tile.type}")
 
     def on_mount(self):
