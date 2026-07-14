@@ -13,6 +13,7 @@ class TileDef:
     mode: str | None = None
     url: str | None = None
     accounts: list[str] | None = None
+    hashtag: str | None = None
 
 
 @dataclass
@@ -41,6 +42,7 @@ def _parse_tile(raw: dict) -> TileDef:
         mode=raw.get("mode"),
         url=raw.get("url"),
         accounts=raw.get("accounts"),
+        hashtag=raw.get("hashtag"),
     )
 
 

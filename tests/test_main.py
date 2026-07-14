@@ -633,6 +633,28 @@ NOC_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 </rss>
 """
 
+MASTODON_HASHTAG_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>#emfcamp</title>
+    <description>Public posts tagged #emfcamp</description>
+    <link>https://mastodon.social/tags/emfcamp</link>
+    <item>
+      <guid isPermaLink="true">https://mastodon.social/@emfcamp/100</guid>
+      <link>https://mastodon.social/@emfcamp/100</link>
+      <pubDate>Thu, 16 Jul 2026 12:00:00 +0000</pubDate>
+      <description>&lt;p&gt;Hello from mastodon.social!&lt;/p&gt;</description>
+    </item>
+    <item>
+      <guid isPermaLink="true">https://hachyderm.io/@user2/200</guid>
+      <link>https://hachyderm.io/@user2/200</link>
+      <pubDate>Thu, 16 Jul 2026 11:00:00 +0000</pubDate>
+      <description>&lt;p&gt;Hello from hachyderm!&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
+"""
+
 
 class TestFediverseTile:
     def test_init(self):
@@ -706,6 +728,68 @@ class TestFediverseTile:
         with patch("httpx.AsyncClient") as mock_cls:
             instance = AsyncMock()
             instance.get.side_effect = Exception("connection failed")
+            mock_cls.return_value.__aenter__.return_value = instance
+            await t._fetch()
+
+        assert t._entries == []
+
+    def test_extract_account(self):
+        from tiles.fediverse import _extract_account
+
+        assert (
+            _extract_account("https://mastodon.social/@emfcamp/100")
+            == "emfcamp@mastodon.social"
+        )
+        assert (
+            _extract_account("https://hachyderm.io/@user2/200") == "user2@hachyderm.io"
+        )
+
+    async def test_fetch_includes_hashtag_entries(self):
+        from unittest.mock import AsyncMock, patch
+
+        t = FediverseTile(["badge"], hashtag="emfcamp")
+        t._header = Mock()
+        t._content = Mock()
+
+        async def get_side_effect(url):
+            resp = Mock()
+            resp.raise_for_status = Mock()
+            if "badge" in url:
+                resp.text = BADGE_RSS
+            else:
+                resp.text = MASTODON_HASHTAG_RSS
+            return resp
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            instance = AsyncMock()
+            instance.get.side_effect = get_side_effect
+            mock_cls.return_value.__aenter__.return_value = instance
+            await t._fetch()
+
+        # badge (2 entries) + hashtag (2 entries) = 4, sorted by time
+        assert len(t._entries) == 4
+        accounts = [e["account"] for e in t._entries]
+        assert "badge" in accounts
+        assert "emfcamp@mastodon.social" in accounts
+        assert "user2@hachyderm.io" in accounts
+        # badge update 1 (10:00+01:00 = 09:00 UTC), badge update 2 (09:00+01:00 = 08:00 UTC)
+        # mastodon: 12:00 UTC, hachyderm: 11:00 UTC
+        # sorted descending: 12:00, 11:00, 09:00, 08:00
+        assert t._entries[0]["account"] == "emfcamp@mastodon.social"
+        assert t._entries[1]["account"] == "user2@hachyderm.io"
+        assert t._entries[2]["account"] == "badge"
+        assert t._entries[3]["account"] == "badge"
+
+    async def test_hashtag_skips_offline(self):
+        from unittest.mock import AsyncMock, patch
+
+        t = FediverseTile(["badge"], hashtag="emfcamp")
+        t._header = Mock()
+        t._content = Mock()
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            instance = AsyncMock()
+            instance.get.side_effect = Exception("all failed")
             mock_cls.return_value.__aenter__.return_value = instance
             await t._fetch()
 

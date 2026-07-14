@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from html import unescape
 import re
+from urllib.parse import urlparse
 
 import feedparser
 import httpx
@@ -17,11 +18,21 @@ def _strip_html(text: str) -> str:
     return text.strip()
 
 
+def _extract_account(link: str) -> str:
+    parsed = urlparse(link)
+    path = parsed.path.strip("/")
+    parts = path.split("/")
+    if parts and parts[0].startswith("@"):
+        return f"{parts[0][1:]}@{parsed.netloc}"
+    return parsed.netloc
+
+
 class FediverseTile(Static):
-    def __init__(self, accounts: list[str], **kwargs):
+    def __init__(self, accounts: list[str], hashtag: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.can_focus = True
         self._accounts = accounts
+        self._hashtag = hashtag
         self._entries: list[dict] = []
         self._error: str | None = None
 
@@ -53,6 +64,31 @@ class FediverseTile(Static):
                         content = entry.content[0].get("value", "")
                     if not content:
                         content = entry.get("summary", "")
+                    all_entries.append(
+                        {
+                            "published": entry.get("published", ""),
+                            "published_parsed": entry.get("published_parsed"),
+                            "title": entry.get("title", ""),
+                            "content": content,
+                            "account": account,
+                        }
+                    )
+            except Exception:
+                pass
+
+        if self._hashtag:
+            try:
+                url = f"https://mastodon.social/tags/{self._hashtag}.rss"
+                async with httpx.AsyncClient(
+                    follow_redirects=True, timeout=10
+                ) as client:
+                    r = await client.get(url)
+                    r.raise_for_status()
+                    feed = feedparser.parse(r.text)
+                for entry in feed.entries:
+                    content = entry.get("summary", "")
+                    link = entry.get("link", "")
+                    account = _extract_account(link)
                     all_entries.append(
                         {
                             "published": entry.get("published", ""),
@@ -100,7 +136,13 @@ class FediverseTile(Static):
         self._content.clear()
         for e in self._entries:
             ts = self._fmt_ts(e)
-            header_text = f"@{e['account']}" + (f" — {ts}" if ts else "")
+            acct = e["account"]
+            if "@" in acct:
+                header_text = acct
+            else:
+                header_text = f"@{acct}"
+            if ts:
+                header_text += f" — {ts}"
             body = _strip_html(e.get("content", ""))
 
             t = Text()

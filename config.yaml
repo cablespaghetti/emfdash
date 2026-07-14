@@ -20,10 +20,6 @@ columns:
   - weight: 1
     rows:
       - type: feed
-        topic: "open/astley"
-        emoji: "🕺"
-        weight: 1
-      - type: feed
         topic: "open/the-ducks"
         emoji: "🦆"
         weight: 1
@@ -40,4 +36,6 @@ columns:
           #- robotarms
           #- video
           #- content
+      - type: fediverse
+        hashtag: emfcamp
         weight: 1

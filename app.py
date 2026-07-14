@@ -163,7 +163,11 @@ class EmfDashApp(App):
         if tile.type == "films":
             return FilmTile(classes=classes)
         if tile.type == "fediverse":
-            return FediverseTile(tile.accounts or [], classes=classes)
+            return FediverseTile(
+                tile.accounts or [],
+                hashtag=tile.hashtag,
+                classes=classes,
+            )
         raise ValueError(f"Unknown tile type: {tile.type}")
 
     def on_mount(self):
