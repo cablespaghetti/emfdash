@@ -1,4 +1,5 @@
 import json
+import queue
 from datetime import datetime
 
 from rich.table import Table
@@ -6,6 +7,23 @@ from textual.widgets import Static
 
 from constants import CLOUDY, PARTLY, RAINY, SUNNY, WINDY
 from mqtt import MqttManager
+
+MAPPING = {
+    "temp": "temp",
+    "feelslike": "feelslike",
+    "humidity": "humidity",
+    "windspeed": "windspeed",
+    "winddir": "winddir",
+    "windgust": "windgust",
+    "baromabs": "baromabs",
+    "solarradiation": "solarradiation",
+    "uv": "uv",
+    "rainrate": "rrain_piezo",
+    "hourlyrain": "hrain_piezo",
+    "dailyrain": "drain_piezo",
+    "weeklyrain": "wrain_piezo",
+    "eventrain": "erain_piezo",
+}
 
 
 class WeatherTile(Static):
@@ -15,6 +33,7 @@ class WeatherTile(Static):
         self._mqtt = mqtt
         self._data: dict[str, str] = {}
         self._last_update: datetime | None = None
+        self._queue: queue.Queue = queue.Queue(maxsize=200)
 
     def compose(self):
         yield Static("[bold]Weather[/] [dim]— from MQTT[/]", classes="tile-header")
@@ -24,6 +43,7 @@ class WeatherTile(Static):
         self._header = self.query_one(".tile-header", Static)
         self._content = self.query_one("#weather-content", Static)
         self._redraw()
+        self.set_interval(0.1, self._poll)
         self._mqtt.subscribe("weather/hq", self._mqtt_on_hq_message)
 
     def _mqtt_on_hq_message(self, msg):
@@ -35,28 +55,23 @@ class WeatherTile(Static):
             data = json.loads(payload)
         except json.JSONDecodeError:
             return
-        mapping = {
-            "temp": "temp",
-            "feelslike": "feelslike",
-            "humidity": "humidity",
-            "windspeed": "windspeed",
-            "winddir": "winddir",
-            "windgust": "windgust",
-            "baromabs": "baromabs",
-            "solarradiation": "solarradiation",
-            "uv": "uv",
-            "rainrate": "rrain_piezo",
-            "hourlyrain": "hrain_piezo",
-            "dailyrain": "drain_piezo",
-            "weeklyrain": "wrain_piezo",
-            "eventrain": "erain_piezo",
-        }
-        for target, source in mapping.items():
-            val = data.get(source)
-            if val is not None:
-                self._data[target] = str(val)
-        self._last_update = datetime.now()
-        self._redraw()
+        try:
+            self._queue.put_nowait(data)
+        except queue.Full:
+            pass
+
+    def _poll(self):
+        try:
+            while True:
+                data = self._queue.get_nowait()
+                for target, source in MAPPING.items():
+                    val = data.get(source)
+                    if val is not None:
+                        self._data[target] = str(val)
+                self._last_update = datetime.now()
+                self._redraw()
+        except queue.Empty:
+            pass
 
     def _wind_arrow(self, degrees) -> str:
         if degrees is None:

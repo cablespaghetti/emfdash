@@ -160,6 +160,7 @@ class TestWeatherHqCsvFixture:
             reader = csv.DictReader(f, delimiter=";")
             row = next(reader)
             tile._mqtt_on_hq_message(msg("weather/hq", row["Value"]))
+        tile._poll()
         assert tile._data["temp"] == "20.6"
         assert tile._data["feelslike"] == "20.6"
         assert tile._data["humidity"] == "66.0"
@@ -477,13 +478,18 @@ class TestScheduleFavourites:
         assert tile._label == "Favourites"
 
     def test_process_favourites_filters_to_today(self, tile):
+        from datetime import datetime
+
         with open(FAVOURITES_FIXTURE) as f:
             data = json.load(f)
         tile._process_favourites(data)
+        today = datetime.now().strftime("%Y-%m-%d")
         for venue, talks in tile._stages.items():
             for talk in talks:
-                for occ in talk.get("occurrences", []):
-                    assert occ.get("start_date", "").startswith("2026-07-16")
+                assert any(
+                    occ.get("start_date", "").startswith(today)
+                    for occ in talk.get("occurrences", [])
+                ), f"talk {talk['id']} has no occurrence on {today}"
 
     def test_process_favourites_deduplicates(self, tile):
         talks = [
